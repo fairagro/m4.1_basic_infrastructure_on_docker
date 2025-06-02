@@ -45,7 +45,7 @@ sudo apt-get update && sudo apt-get install \
 ### Checkout this repo
 
 ```bash
-git clone 
+git clone git@github.com:fairagro/m4.1_basic_infrastructure_on_docker.git
 ```
 
 ## How to deploy
@@ -53,5 +53,6 @@ git clone
 This is how to deploy:
 
 ```bash
-sops exec-env environments/productive/secrets.enc.env 'docker compose up -d'
+cd m4.1_basic_infrastructure_on_docker
+sops exec-env environments/productive/secrets.enc.yaml -- docker compose up -d
 ```
