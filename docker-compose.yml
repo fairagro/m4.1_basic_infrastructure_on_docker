@@ -1,0 +1,96 @@
+version: '3.9'
+
+services:
+  nextcloud:
+    image: nextcloud:28.0.2
+    container_name: nextcloud_app
+    restart: always
+    environment:
+      - POSTGRES_HOST=db
+      # - POSTGRES_USER=nextcloud
+      # - POSTGRES_PASSWORD=nextcloudpass
+      - POSTGRES_DB=nextcloud
+      - REDIS_HOST=redis
+      - SMTP_HOST=smtp.example.com
+      - SMTP_PORT=587
+      - SMTP_SECURE=tls
+      - SMTP_AUTHTYPE=LOGIN
+      - SMTP_NAME=your@email.com
+      # - SMTP_PASSWORD=your-email-password
+      - MAIL_FROM_ADDRESS=nextcloud
+      - MAIL_DOMAIN=example.com
+    volumes:
+      - nextcloud_data:/var/www/html
+    networks:
+      - nextcloud_net
+      - proxy_net
+    labels:
+      - "traefik.enable=false"
+      - "com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy=true"
+      - "VIRTUAL_HOST=cloud.example.com"
+      - "LETSENCRYPT_HOST=cloud.example.com"
+      - "LETSENCRYPT_EMAIL=admin@example.com"
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:15
+    container_name: nextcloud_db
+    restart: always
+    environment:
+      - POSTGRES_DB=nextcloud
+      - POSTGRES_USER=nextcloud
+      - POSTGRES_PASSWORD=nextcloudpass
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - nextcloud_net
+
+  redis:
+    image: redis:alpine
+    container_name: nextcloud_redis
+    restart: always
+    networks:
+      - nextcloud_net
+
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy
+    container_name: nginx_proxy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/nginx/certs
+      - /etc/nginx/vhost.d
+      - /usr/share/nginx/html
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - nginx_certs:/etc/nginx/certs:rw
+    networks:
+      - proxy_net
+
+  acme-companion:
+    image: nginxproxy/acme-companion
+    container_name: nginx_acme
+    restart: always
+    environment:
+      - DEFAULT_EMAIL=admin@example.com
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - nginx_certs:/etc/nginx/certs:rw
+      - /etc/nginx/vhost.d
+      - /usr/share/nginx/html
+    depends_on:
+      - nginx-proxy
+    networks:
+      - proxy_net
+
+volumes:
+  nextcloud_data:
+  db_data:
+  nginx_certs:
+
+networks:
+  nextcloud_net:
+  proxy_net:
