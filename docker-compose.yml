@@ -103,7 +103,7 @@ services:
       - POSTGRES_USER
     read_only: true
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/data:rw
     networks:
       - nextcloud_net
     security_opt:
@@ -228,7 +228,6 @@ volumes:
   nginx_certs:
   nginx_html:
   nextcloud_php_confd:
-  nextxtcloud_redis_session_ini:
   certbot_logs:
   certbot_work:
 
