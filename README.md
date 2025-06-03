@@ -42,6 +42,15 @@ sudo apt-get update && sudo apt-get install \
   docker-compose-plugin
 ```
 
+### Enable overcommit
+
+This is a host setting that is needed by redis:
+
+```bash
+echo 'vm.overcommit_memory=1' | sudo tee /etc/sysctl.d/99-redis-overcommit.conf
+sysctl --system
+```
+
 ### Checkout this repo
 
 ```bash
@@ -54,5 +63,10 @@ This is how to deploy:
 
 ```bash
 cd m4.1_basic_infrastructure_on_docker
-sops exec-env environments/productive/secrets.enc.yaml -- docker compose up -d
+sops exec-env environments/productive/secrets.enc.yaml 'docker compose up -d'
 ```
+
+## Remark on the `docker-compose.yml`
+
+* The service containers `nextcloud` and `nginx-proxy` are built using different
+  UIID (82 vs 101). So we run them with group id 1000, so they can share data.
