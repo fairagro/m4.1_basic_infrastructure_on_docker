@@ -4,10 +4,10 @@ services:
     container_name: nextcloud_app
     restart: unless-stopped
     environment:
-      - POSTGRES_HOST=db
+      - POSTGRES_HOST=nextcloud-db
       - POSTGRES_DB=nextcloud
       - PGSSLCERT=/tmp/postgresql.crt
-      - REDIS_HOST=redis
+      - REDIS_HOST=nextcloud-redis
       - SMTP_HOST=www623.your-server.de
       - SMTP_PORT=587
       - SMTP_SECURE=starttls
@@ -30,16 +30,20 @@ services:
     user: "82:1000"
     read_only: false
     volumes:
-      - nextcloud_data:/var/www/html
-      - ./nextcloud/redis-session.ini:/usr/local/etc/php/conf.d/redis-session.ini
+      - nextcloud_data:/var/www/html:rw
+      - ./nextcloud/redis-session.ini:/usr/local/etc/php/conf.d/redis-session.ini:rw
+      - ./nextcloud/nextcloud-config.sh:/docker-entrypoint-hooks.d/before-starting/nextcloud-config.sh:ro
+      - ./nextcloud/php-fpm-www.conf:/usr/local/etc/php-fpm.d/www.conf:ro
     expose:
       - "9000"  # FPM
+      - "9001"  # FPM status
     networks:
-      - nextcloud_net
-      - proxy_net
+      - nextcloud-db-net
+      - nextcloud-redis-net
+      - nextcloud-nginx-net
     depends_on:
-      - db
-      - redis
+      - nextcloud-db
+      - nextcloud-redis
     cap_drop:
       - ALL
     security_opt:
@@ -55,10 +59,10 @@ services:
     depends_on:
       - nextcloud
     environment:
-      - POSTGRES_HOST=db
+      - POSTGRES_HOST=nextcloud-db
       - POSTGRES_DB=nextcloud
       - PGSSLCERT=/tmp/postgresql.crt
-      - REDIS_HOST=redis
+      - REDIS_HOST=nextcloud-redis
       - SMTP_HOST=www623.your-server.de
       - SMTP_PORT=587
       - SMTP_SECURE=starttls
@@ -74,13 +78,14 @@ services:
       - SMTP_NAME
       - SMTP_PASSWORD
       - REDIS_HOST_PASSWORD
-    read_only: false
+    read_only: true
     volumes:
-      - nextcloud_data:/var/www/html
-      - ./nextcloud/redis-session.ini:/usr/local/etc/php/conf.d/redis-session.ini
+      - nextcloud_data:/var/www/html:rw
+      - ./nextcloud/redis-session.ini:/usr/local/etc/php/conf.d/redis-session.ini:ro
+      - ./nextcloud/php-fpm-www.conf:/usr/local/etc/php-fpm.d/www.conf:ro
     networks:
-      - nextcloud_net
-      - proxy_net
+      - nextcloud-db-net
+      - nextcloud-redis-net
     cap_drop:
       - ALL
     cap_add:
@@ -89,10 +94,38 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  db:
+  nextcloud-db:
     image: postgres:15
     container_name: nextcloud_db
-    command: postgres -c listen_addresses='db'
+    # Setting suggestions by https://pgtune.leopard.in.ua with this input:
+    # DB Version: 15
+    # OS Type: linux
+    # DB Type: web
+    # Total Memory (RAM): 4 GB
+    # CPUs num: 4
+    # Connections num: 30
+    # Data Storage: san
+    command: >
+      postgres
+        -c listen_addresses='nextcloud-db'
+        -c log_min_duration_statement='200'
+        -c max_connections='30'
+        -c shared_buffers='1GB'
+        -c effective_cache_size='3GB'
+        -c maintenance_work_mem='256MB'
+        -c checkpoint_completion_target='0.9'
+        -c wal_buffers='16MB'
+        -c default_statistics_target='100'
+        -c random_page_cost='1.1'
+        -c effective_io_concurrency='300'
+        -c work_mem='30840kB'
+        -c huge_pages='off'
+        -c min_wal_size='1GB'
+        -c max_wal_size='4GB'
+        -c max_worker_processes='4'
+        -c max_parallel_workers_per_gather='2'
+        -c max_parallel_workers='4'
+        -c max_parallel_maintenance_workers='2'
     restart: always
     environment:
       - POSTGRES_DB=nextcloud
@@ -101,28 +134,28 @@ services:
       - POSTGRES_USER
     read_only: true
     volumes:
-      - db_data:/var/lib/postgresql/data:rw
+      - nextcloud_db_data:/var/lib/postgresql/data:rw
     networks:
-      - nextcloud_net
+      - nextcloud-db-net
     security_opt:
       - no-new-privileges:true
     tmpfs:
       - /tmp
       - /run
 
-  redis:
+  nextcloud-redis:
     image: redis:alpine
     container_name: nextcloud_redis
     restart: always
     command: >
       redis-server
-      --bind redis
+      --bind nextcloud-redis
       --requirepass $REDIS_HOST_PASSWORD
     environment:
       # folgende variablen werden via secret gesetzt:
       - REDIS_HOST_PASSWORD
     networks:
-      - nextcloud_net
+      - nextcloud-redis-net
     security_opt:
       - no-new-privileges:true
     read_only: true
@@ -138,16 +171,21 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "9000:9000"
     read_only: true
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d
-      - nginx_certs:/etc/nginx/certs
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - nextcloud_data:/var/www/html
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - nginx_certs:/etc/nginx/certs:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - nextcloud_data:/var/www/html:ro
+      - ./nginx/99_nextcloud_fpm_status_credentials.sh:/docker-entrypoint.d/99_nextcloud_fpm_status_credentials.sh:ro
+    environment:
+      - NEXTCLOUD_FPM_STATUS_CREDENTIALS
     depends_on:
       - certbot
     networks:
-      - proxy_net
+      - nextcloud-nginx-net
+      - external-net
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -165,9 +203,9 @@ services:
     container_name: nginx_certbot_init
     command: sh -c "chown -R 101:1000 /etc/letsencrypt /var/log/letsencrypt /var/lib/letsencrypt"
     volumes:
-      - nginx_certs:/etc/letsencrypt
-      - certbot_logs:/var/log/letsencrypt
-      - certbot_work:/var/lib/letsencrypt
+      - nginx_certs:/etc/letsencrypt:rw
+      - certbot_logs:/var/log/letsencrypt:rw
+      - certbot_work:/var/lib/letsencrypt:rw
     restart: "no"
 
   certbot:
@@ -180,7 +218,7 @@ services:
     read_only: true
     volumes:
       - nginx_certs:/etc/letsencrypt:rw
-      - ./certbot/run-certbot.sh:/run-certbot.sh
+      - ./certbot/run-certbot.sh:/run-certbot.sh:ro
       - certbot_logs:/var/log/letsencrypt:rw
       - certbot_work:/var/lib/letsencrypt:rw
     entrypoint: /run-certbot.sh
@@ -206,7 +244,7 @@ services:
     read_only: true
     volumes:
       - nginx_certs:/etc/letsencrypt:rw
-      - ./certbot/certbot-renew.sh:/certbot-renew.sh
+      - ./certbot/certbot-renew.sh:/certbot-renew.sh:ro
       - certbot_logs:/var/log/letsencrypt:rw
       - certbot_work:/var/lib/letsencrypt:rw
     entrypoint: /certbot-renew.sh
@@ -220,18 +258,20 @@ services:
     tmpfs:
       - /tmp
 
-
 volumes:
   nextcloud_data:
-  db_data:
+  nextcloud_db_data:
   nginx_certs:
   nginx_html:
   certbot_logs:
   certbot_work:
 
 networks:
-  nextcloud_net:
-    internal: true   # Kein direkter Zugang von außen
-  proxy_net:
-    internal: false  # Externe Zugriffe erlaubt (z.B. nginx)
-
+  nextcloud-db-net:
+    internal: true
+  nextcloud-redis-net:
+    internal: true
+  nextcloud-nginx-net:
+    internal: true
+  external-net:
+    internal: false
