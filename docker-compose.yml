@@ -150,7 +150,7 @@ services:
     command: >
       redis-server
       --bind nextcloud-redis
-      --requirepass $REDIS_HOST_PASSWORD
+      --requirepass "$REDIS_HOST_PASSWORD"
     environment:
       # folgende variablen werden via secret gesetzt:
       - REDIS_HOST_PASSWORD
