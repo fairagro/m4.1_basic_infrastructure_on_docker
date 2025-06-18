@@ -155,6 +155,7 @@ Wait until maintenance mod is active...
 
 ```bash
 NEW_INSTANCEID=$(docker exec -it m41_basic_infrastructure_on_docker-nextcloud-1 grep instanceid config/config.php | cut -d "'" -f 4)
+TEMP=$(mktemp -d)
 # Delete the content of the old /var/www/html folder, without the config folder.
 # We want to replace all files from the backup, except the config because it's not up-to-date anymore.
 sudo find "$NEXTCLOUD_HOST_PATH" -mindepth 1 -path "$NEXTCLOUD_HOST_PATH/config" -prune -o -exec rm -rf {} +
@@ -165,11 +166,20 @@ sudo rsync -a --numeric-ids --times --devices --specials --perms --acls --xattrs
 sudo rsync -a --numeric-ids --times --devices --specials --perms --acls --xattrs $NEXTCLOUD_BACKUP/themes $NEXTCLOUD_HOST_PATH
 # Delete the content of the old /var/www/data folder.
 [ -n "$NEXTCLOUD_DATA_HOST_PATH" ] && sudo sh -c "rm -rf $NEXTCLOUD_DATA_HOST_PATH/*"
+# Restore the contens of /var/www/data from the backup
 sudo rsync -a --numeric-ids --times --devices --specials --perms --acls --xattrs $NEXTCLOUD_DATA_BACKUP/data/* $NEXTCLOUD_DATA_HOST_PATH
-sudo mkdir $NEXTCLOUD_DATA_HOST_PATH/appdata_$NEW_INSTANCEID
-sudo chown 82:82 $NEXTCLOUD_DATA_HOST_PATH/appdata_$NEW_INSTANCEID
-sudo chmod 2775 $NEXTCLOUD_DATA_HOST_PATH/appdata_$NEW_INSTANCEID
-sudo rsync -a --numeric-ids --times --devices --specials --perms --acls --xattrs $NEXTCLOUD_DATA_BACKUP/data/appdata_$OLD_INSTANCEID/* $NEXTCLOUD_DATA_HOST_PATH/appdata_$NEW_INSTANCEID
+# Delete all appdata directories. What we actually want to achieve: take the active appdata folder of the backup and rename it
+# to the name of the appdata folder of our current nextcloud instance, while deleting all other appdata folders.
+sudo mv $NEXTCLOUD_DATA_HOST_PATH/appdata_$OLD_INSTANCEID $TEMP/appdata_$NEW_INSTANCEID
+[ -n "$NEXTCLOUD_DATA_HOST_PATH" ] && sudo sh -c "rm -rf $NEXTCLOUD_DATA_HOST_PATH/appdata_*"
+sudo mv $TEMP/appdata_$NEW_INSTANCEID $NEXTCLOUD_DATA_HOST_PATH/
+# Re-create the just deleted appdata folder with the correct permissions
+# sudo mkdir $NEXTCLOUD_DATA_HOST_PATH/appdata_$NEW_INSTANCEID
+# sudo chown 82:82 $NEXTCLOUD_DATA_HOST_PATH/appdata_$NEW_INSTANCEID
+# sudo chmod 2775 $NEXTCLOUD_DATA_HOST_PATH/appdata_$NEW_INSTANCEID
+# Restore the appdata folder from the backup
+# sudo rsync -a --numeric-ids --times --devices --specials --perms --acls --xattrs $NEXTCLOUD_DATA_BACKUP/data/appdata_$OLD_INSTANCEID/* $NEXTCLOUD_DATA_HOST_PATH/appdata_$NEW_INSTANCEID
+# Replace the nextcloud database from backup
 docker exec -i m41_basic_infrastructure_on_docker-db-1 su - postgres -c 'psql -c "DROP DATABASE \"nextcloud\""'
 cat $DB_BACKUP | docker exec -i m41_basic_infrastructure_on_docker-db-1 su - postgres -c 'psql'
 docker exec -it m41_basic_infrastructure_on_docker-nextcloud-1 /var/www/html/occ maintenance:mode --off
