@@ -51,6 +51,16 @@ echo 'vm.overcommit_memory=1' | sudo tee /etc/sysctl.d/99-redis-overcommit.conf
 sysctl --system
 ```
 
+### Extend `/etc/hosts`
+
+Add `nextcloud.fairagro.net` and `onlyoffice.fairagro.net` to the `/etc/hosts` file:
+
+```bash
+sudo cat >> /etc/hosts <<EOF
+10.14.10.64 nextcloud.fairagro.net
+10.14.10.64 onlyoffice.fairagro.net
+EOF
+
 ### Checkout this repo
 
 ```bash
@@ -66,7 +76,105 @@ cd m4.1_basic_infrastructure_on_docker
 sops exec-env environments/productive/secrets.enc.yaml 'docker compose up -d'
 ```
 
-## Remark on the `docker-compose.yml`
+## Remark on the file `docker-compose.yml`
 
 * The service containers `nextcloud` and `nginx-proxy` are built using different
-  UIID (82 vs 101). So we run them with group id 1000, so they can share data.
+  UID (82 vs 101). So we run them with group id 1000, so they can share data.
+
+## Remark on the file `nextcloud/redis-session.ini`
+
+It will be mounted as -- initially -- empty file into the nextcloud container.
+The nextcloud entrypoint will then write to it. We use this approach as otherwise
+this file would not be writable by a non-root container. We do not wont to add the
+contentets of this file to the git repo (it contains secrets), so it was added to
+`.gitignore` after the initial creation.
+
+## Restoring the backup
+
+The backup consists of filesystem backups of the two kubernetes volumes called
+`nextcloud` and `nextcloud_data` and a database backup.
+There are several subdirectories in the `nextcloud` volume that were mounted to
+the corresponding directories in `/var/www/html`. The `nextcloud_data` volume was
+mounted to `/nextcloud_data`, while the nextcloud config pointed to that directory.
+
+Our current docker installation just uses one volume, mounted to `/var/www/html`.
+
+Note that we won't make use of the configuration files of the backup, as they differ
+quite a lot from a freshly set up configuration. Instead the config will is imposed
+by the docker compose file and we need to deal with some `instanceid`-related issues.
+
+### Assumptions
+
+These are our assumptions:
+
+* The two volume backups are created on the kubernetes hosts using
+
+  ```bash
+  sudo rsync -a --numeric-ids --times --devices --specials --perms --acls --xattrs ...
+  ```
+
+  So we have a filesystem-level backup, preserving all the original ownerships, permission
+  and the like. Thus we need root/sudo permission to deal with this backup.
+  If you want to archive the backup, use:
+
+  ```bash
+  sudo tar czf backup.tar.bz2 --numeric-owner --preserve-permissions --acls --xattrs backup_folder
+  sudo tar xzf backup.tar.bz2 --same-owner --same-permissions --acls --xattrs
+  ```
+
+* The database backup is to be created using `pg_dumpall`.
+
+### Preparation
+
+First we assume these backup locations:
+
+* `NEXTCLOUD_BACKUP=<path to the backup of the nextcloud volume>`
+* `NEXTCLOUD_DATA_BACKUP=<path to the backup of the nextcloud data volume>`
+* `DB_BACKUP=<path to the pg_dumpall file>`
+* `NEXTCLOUD_HOST_PATH=/var/lib/docker/volumes/m41_basic_infrastructure_on_docker_nextcloud/_data`
+* `NEXTCLOUD_DATA_HOST_PATH=/var/lib/docker/volumes/m41_basic_infrastructure_on_docker_nextcloud_data/_data`
+
+Figure out the old `instanceid` and `dbpassword`:
+
+```bash
+OLD_INSTANCEID=$(sudo grep instanceid $NEXTCLOUD_BACKUP/config/config.php | cut -d "'" -f 4)
+sudo grep dbpassword $NEXTCLOUD_BACKUP/config/config.php | cut -d "'" -f 4
+```
+
+The `dbpassword` needs to be written to `environment/productive/secrets.enc.yaml`.
+
+
+### Restore process
+
+```bash
+sops exec-env environments/productive/secrets.enc.yaml 'docker compose up -d'
+docker exec -it m41_basic_infrastructure_on_docker-nextcloud-1 /var/www/html/occ maintenance:mode --on
+```
+
+Wait until maintenance mod is active...
+
+```bash
+NEW_INSTANCEID=$(docker exec -it m41_basic_infrastructure_on_docker-nextcloud-1 grep instanceid config/config.php | cut -d "'" -f 4)
+# Delete the content of the old /var/www/html folder, without the config folder.
+# We want to replace all files from the backup, except the config because it's not up-to-date anymore.
+sudo find "$NEXTCLOUD_HOST_PATH" -mindepth 1 -path "$NEXTCLOUD_HOST_PATH/config" -prune -o -exec rm -rf {} +
+# Restore the contents of /var/www/html from the backup, except the config folder
+sudo rsync -a --numeric-ids --times --devices --specials --perms --acls --xattrs $NEXTCLOUD_BACKUP/html/* $NEXTCLOUD_HOST_PATH
+sudo rsync -a --numeric-ids --times --devices --specials --perms --acls --xattrs $NEXTCLOUD_BACKUP/custom_apps /$NEXTCLOUD_HOST_PATH
+sudo rsync -a --numeric-ids --times --devices --specials --perms --acls --xattrs $NEXTCLOUD_BACKUP/root $NEXTCLOUD_HOST_PATH
+sudo rsync -a --numeric-ids --times --devices --specials --perms --acls --xattrs $NEXTCLOUD_BACKUP/themes $NEXTCLOUD_HOST_PATH
+# Delete the content of the old /var/www/data folder.
+[ -n "$NEXTCLOUD_DATA_HOST_PATH" ] && sudo sh -c "rm -rf $NEXTCLOUD_DATA_HOST_PATH/*"
+sudo rsync -a --numeric-ids --times --devices --specials --perms --acls --xattrs $NEXTCLOUD_DATA_BACKUP/data/* $NEXTCLOUD_DATA_HOST_PATH
+sudo mkdir $NEXTCLOUD_DATA_HOST_PATH/appdata_$NEW_INSTANCEID
+sudo chown 82:82 $NEXTCLOUD_DATA_HOST_PATH/appdata_$NEW_INSTANCEID
+sudo chmod 2775 $NEXTCLOUD_DATA_HOST_PATH/appdata_$NEW_INSTANCEID
+sudo rsync -a --numeric-ids --times --devices --specials --perms --acls --xattrs $NEXTCLOUD_DATA_BACKUP/data/appdata_$OLD_INSTANCEID/* $NEXTCLOUD_DATA_HOST_PATH/appdata_$NEW_INSTANCEID
+docker exec -i m41_basic_infrastructure_on_docker-db-1 su - postgres -c 'psql -c "DROP DATABASE \"nextcloud\""'
+cat $DB_BACKUP | docker exec -i m41_basic_infrastructure_on_docker-db-1 su - postgres -c 'psql'
+docker exec -it m41_basic_infrastructure_on_docker-nextcloud-1 /var/www/html/occ maintenance:mode --off
+```
+
+Note that it is normal if the database restore shows errors due to missing tables and schemas and the like.
+This is because the kuberentes postgresql operator uses a bunch of postgresql extensions that are not
+available on a plain postgresql docker images.
