@@ -1,16 +1,13 @@
 #!/usr/bin/env sh
 
-# install OnlyOffice integration (using richdocuments and enabling WOPI for OnlyOffice would also be possible)
+# install OnlyOffice integration
 php /var/www/html/occ app:install onlyoffice
 
 # Configure OnlyOffice integration app
-{{- $onlyoffice_server := (first (index .Values "fairagro-onlyoffice").ingress.hosts).host }}
-{{- $nextcloud_server := .Values.nextcloud.nextcloud.host }}
-{{- $jwt_secret := (index .Values "fairagro-onlyoffice").jwt_secret }}
-php /var/www/html/occ config:app:set onlyoffice DocumentServerUrl --value=https://{{ $onlyoffice_server }}/
+php /var/www/html/occ config:app:set onlyoffice DocumentServerUrl --value=https://${ONLYOFFICE_SERVER}/
 # For some reason we also we to set the (internal) StorageURL which is the nextcloud URL.
-php /var/www/html/occ config:app:set onlyoffice StorageUrl --value=https://{{ $nextcloud_server }}/
-php /var/www/html/occ config:app:set onlyoffice jwt_secret --value={{ $jwt_secret }}
+php /var/www/html/occ config:app:set onlyoffice StorageUrl --value=https://${NEXTCLOUD_TRUSTED_DOMAINS}
+php /var/www/html/occ config:app:set onlyoffice jwt_secret --quiet --value=${ONLYOFFICE_JWT_SECRET}
 # Enable manual save
 php /var/www/html/occ config:app:set onlyoffice customizationForcesave --value=true
 
