@@ -7,6 +7,7 @@ echo "dns_cloudflare_api_token = $CLOUDFLARE_API_TOKEN" > /tmp/cloudflare.ini
 chmod 600 /tmp/cloudflare.ini
 
 certbot certonly \
+      --cert-name onlyoffice2.fairagro.net \
   --dns-cloudflare \
   --dns-cloudflare-credentials /tmp/cloudflare.ini \
   --dns-cloudflare-propagation-seconds 60 \
