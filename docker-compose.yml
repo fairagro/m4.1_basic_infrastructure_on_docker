@@ -30,6 +30,8 @@ services:
       - REDIS_HOST_PASSWORD
       - ONLYOFFICE_JWT_SECRET
     user: "82:1000"
+    extra_hosts:
+      - "nextcloud2.fairagro.net:10.14.10.64"
     read_only: false
     volumes:
       - nextcloud:/var/www/html:rw
@@ -85,6 +87,8 @@ services:
       - SMTP_NAME
       - SMTP_PASSWORD
       - REDIS_HOST_PASSWORD
+    extra_hosts:
+      - "nextcloud2.fairagro.net:10.14.10.64"
     read_only: true
     volumes:
       - nextcloud:/var/www/html:rw
