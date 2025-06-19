@@ -239,7 +239,8 @@ services:
     read_only: true
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - nginx_certs:/etc/nginx/certs:ro
+      - nextcloud_certs_archive:/etc/nginx/certs/archive/nextcloud2.fairagro.net:ro
+      - nextcloud_certs_live:/etc/nginx/certs/live/nextcloud2.fairagro.net:ro
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - nextcloud:/var/www/html:ro
       - ./nginx/99_nextcloud_fpm_status_credentials.sh:/docker-entrypoint.d/99_nextcloud_fpm_status_credentials.sh:ro
@@ -266,7 +267,11 @@ services:
     image: alpine
     command: sh -c "chown -R 101:1000 /etc/letsencrypt /var/log/letsencrypt /var/lib/letsencrypt"
     volumes:
-      - nginx_certs:/etc/letsencrypt:rw
+      - nextcloud_certs_archive:/etc/letsencrypt/archive/nextcloud2.fairagro.net:rw
+      - nextcloud_certs_live:/etc/letsencrypt/live/nextcloud2.fairagro.net:rw
+      - onlyoffice_certs_archive:/etc/letsencrypt/archive/onlyoffice2.fairagro.net:rw
+      - onlyoffice_certs_live:/etc/letsencrypt/live/onlyoffice2.fairagro.net:rw
+      - certbot_config:/etc/letsencrypt:rw
       - certbot_logs:/var/log/letsencrypt:rw
       - certbot_work:/var/lib/letsencrypt:rw
     restart: "no"
@@ -279,8 +284,12 @@ services:
       - certbot_init
     read_only: true
     volumes:
-      - nginx_certs:/etc/letsencrypt:rw
+      - nextcloud_certs_archive:/etc/letsencrypt/archive/nextcloud2.fairagro.net:rw
+      - nextcloud_certs_live:/etc/letsencrypt/live/nextcloud2.fairagro.net:rw
+      - onlyoffice_certs_archive:/etc/letsencrypt/archive/onlyoffice2.fairagro.net:rw
+      - onlyoffice_certs_live:/etc/letsencrypt/live/onlyoffice2.fairagro.net:rw
       - ./certbot/run-certbot.sh:/run-certbot.sh:ro
+      - certbot_config:/etc/letsencrypt:rw
       - certbot_logs:/var/log/letsencrypt:rw
       - certbot_work:/var/lib/letsencrypt:rw
     entrypoint: /run-certbot.sh
@@ -296,40 +305,20 @@ services:
       - ALL
     tmpfs:
       - /tmp
-      
-  certbot-renew:
-    image: certbot/dns-cloudflare
-    restart: unless-stopped
-    user: "101:1000"
-    depends_on:
-      - certbot
-    read_only: true
-    volumes:
-      - nginx_certs:/etc/letsencrypt:rw
-      - ./certbot/certbot-renew.sh:/certbot-renew.sh:ro
-      - certbot_logs:/var/log/letsencrypt:rw
-      - certbot_work:/var/lib/letsencrypt:rw
-    entrypoint: /certbot-renew.sh
-    environment:
-      # folgende variablen werden via secret gesetzt:
-      - CLOUDFLARE_API_TOKEN
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    tmpfs:
-      - /tmp
 
 volumes:
   nextcloud:
   nextcloud_data:
+  nextcloud_certs_archive:
+  nextcloud_certs_live:
   onlyoffice_data:
   onlyoffice_logs:
   onlyoffice_lib:
+  onlyoffice_certs_archive:
+  onlyoffice_certs_live:
   db_data:
-  # redis-session_ini:
-  nginx_certs:
   nginx_html:
+  certbot_config:
   certbot_logs:
   certbot_work:
 
