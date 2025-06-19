@@ -68,6 +68,9 @@ sudo dnf remove docker \
 sudo dnf -y install dnf-plugins-core
 sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo systemctl enable --now docker
+sudo usermod -aG docker "$USER"
+newgrp docker
 ```
 
 ### Enable overcommit
@@ -100,11 +103,13 @@ git clone https://github.com/fairagro/m4.1_basic_infrastructure_on_docker.git
 
 This is how to deploy:
 
-* Set the `AGE_SECRET_KEY` variable to the private deployment key which can be
+* Set the age secret key to the private deployment key which can be
   found in keepass:
 
   ```bash
-  export AGE_SECRET_KEY='...'
+  mkdir -p ~/.config/sops/age
+  vim ~/.config/sops/age/key.txt
+  chmod 400 ~/.config/sops/age/key.txt
   ```
 
 * run docker compose

@@ -2,6 +2,7 @@
 
 set -eu
 
+echo "Writing license file..."
 LICENSE_FILE="/var/www/onlyoffice/Data/license.lic"
 if [ -n "$ONLYOFFICE_LICENSE" ]; then
     echo "$ONLYOFFICE_LICENSE" > "$LICENSE_FILE";
