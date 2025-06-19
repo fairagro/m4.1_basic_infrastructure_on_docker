@@ -2,7 +2,6 @@ services:
   nextcloud:
     image: nextcloud:28.0.2-fpm-alpine
     restart: unless-stopped
-    # command: tail -f /dev/null
     environment:
       - POSTGRES_HOST=db
       - POSTGRES_DB=nextcloud
@@ -185,7 +184,7 @@ services:
         -c max_parallel_workers_per_gather='2'
         -c max_parallel_workers='4'
         -c max_parallel_maintenance_workers='2'
-    restart: always
+    restart: unless-stopped
     environment:
       - NEXTCLOUD_DB=nextcloud
       - ONLYOFFICE_DB=onlyoffice
@@ -211,7 +210,7 @@ services:
 
   nextcloud-redis:
     image: redis:alpine
-    restart: always
+    restart: unless-stopped
     command: >
       redis-server
       --bind nextcloud-redis
@@ -231,7 +230,7 @@ services:
 
   nginx-proxy:
     image: nginxinc/nginx-unprivileged:1.25-alpine
-    restart: always
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
@@ -278,7 +277,7 @@ services:
 
   certbot:
     image: certbot/dns-cloudflare
-    restart: "no"
+    restart: unless-stopped
     user: "101:1000"  # Ein normaler User ohne Rootrechte
     depends_on:
       - certbot_init
