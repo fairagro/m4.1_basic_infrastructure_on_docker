@@ -10,7 +10,7 @@ while :; do
     echo '🔄 Running certbot every 12h...'
 
     certbot certonly \
-      --cert-name nextcloud2.fairagro.net \
+      --cert-name nextcloud.fairagro.net \
       --dns-cloudflare \
       --dns-cloudflare-credentials /tmp/cloudflare.ini \
       --dns-cloudflare-propagation-seconds 60 \
@@ -25,7 +25,7 @@ while :; do
     echo '✅ Cert requet/renewal for nextcloud complete...'
 
     certbot certonly \
-      --cert-name onlyoffice2.fairagro.net \
+      --cert-name onlyoffice.fairagro.net \
       --dns-cloudflare \
       --dns-cloudflare-credentials /tmp/cloudflare.ini \
       --dns-cloudflare-propagation-seconds 60 \

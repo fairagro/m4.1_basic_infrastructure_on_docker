@@ -15,8 +15,8 @@ services:
       - SMTP_AUTHTYPE=LOGIN
       - MAIL_FROM_ADDRESS=nextcloud
       - MAIL_DOMAIN=fairagro.net
-      - ONLYOFFICE_SERVER=onlyoffice2.fairagro.net
-      - NEXTCLOUD_TRUSTED_DOMAINS=nextcloud2.fairagro.net
+      - ONLYOFFICE_SERVER=onlyoffice.fairagro.net
+      - NEXTCLOUD_TRUSTED_DOMAINS=nextcloud.fairagro.net
       - NEXTCLOUD_DATA_DIR=/var/www/data
       # these variables are set via secrets:
       # (TODO:we could alternatively rely on docker secrets, but it's unclear if this
@@ -31,8 +31,8 @@ services:
       - ONLYOFFICE_JWT_SECRET
     user: "82:1000"
     extra_hosts:
-      - "nextcloud2.fairagro.net:10.14.10.64"
-      - "onlyoffice2.fairagro.net:10.14.10.64"
+      - "nextcloud.fairagro.net:10.14.10.64"
+      - "onlyoffice.fairagro.net:10.14.10.64"
     read_only: false
     volumes:
       - nextcloud:/var/www/html:rw
@@ -80,7 +80,7 @@ services:
       - SMTP_AUTHTYPE=LOGIN
       - MAIL_FROM_ADDRESS=nextcloud
       - MAIL_DOMAIN=fairagro.net
-      - NEXTCLOUD_TRUSTED_DOMAINS=nextcloud2.fairagro.net
+      - NEXTCLOUD_TRUSTED_DOMAINS=nextcloud.fairagro.net
       - NEXTCLOUD_DATA_DIR=/var/www/data
       # these variables are set via secrets:
       - NEXTCLOUD_ADMIN_USER
@@ -89,8 +89,8 @@ services:
       - SMTP_PASSWORD
       - REDIS_HOST_PASSWORD
     extra_hosts:
-      - "nextcloud2.fairagro.net:10.14.10.64"
-      - "onlyoffice2.fairagro.net:10.14.10.64"
+      - "nextcloud.fairagro.net:10.14.10.64"
+      - "onlyoffice.fairagro.net:10.14.10.64"
     read_only: true
     volumes:
       - nextcloud:/var/www/html:rw
@@ -125,8 +125,8 @@ services:
       - DB_PWD=${ONLYOFFICE_DB_PASSWORD}
       - JWT_ENABLED=true
       - JWT_SECRET=${ONLYOFFICE_JWT_SECRET}
-      - SSL_CERTIFICATE_PATH=/var/www/onlyoffice/Data/certs/live/onlyoffice2.fairagro.net/fullchain.pem
-      - SSL_KEY_PATH=/var/www/onlyoffice/Data/certs/live/onlyoffice2.fairagro.net/privkey.pem
+      - SSL_CERTIFICATE_PATH=/var/www/onlyoffice/Data/certs/live/onlyoffice.fairagro.net/fullchain.pem
+      - SSL_KEY_PATH=/var/www/onlyoffice/Data/certs/live/onlyoffice.fairagro.net/privkey.pem
       - PGSSLCERT=/tmp/postgresql.crt
       - ONLYOFFICE_LICENSE
     depends_on:
@@ -135,14 +135,14 @@ services:
       - onlyoffice-db-net
       - external-net
     extra_hosts:
-      - "nextcloud2.fairagro.net:10.14.10.64"
-      - "onlyoffice2.fairagro.net:10.14.10.64"
+      - "nextcloud.fairagro.net:10.14.10.64"
+      - "onlyoffice.fairagro.net:10.14.10.64"
     volumes:
       - onlyoffice_data:/var/www/onlyoffice/Data:rw
       - onlyoffice_logs:/var/log/onlyoffice:rw
       - onlyoffice_lib:/var/lib/onlyoffice:rw
-      - onlyoffice_certs_archive:/var/www/onlyoffice/Data/certs/archive/onlyoffice2.fairagro.net:ro
-      - onlyoffice_certs_live:/var/www/onlyoffice/Data/certs/live/onlyoffice2.fairagro.net:ro
+      - onlyoffice_certs_archive:/var/www/onlyoffice/Data/certs/archive/onlyoffice.fairagro.net:ro
+      - onlyoffice_certs_live:/var/www/onlyoffice/Data/certs/live/onlyoffice.fairagro.net:ro
       - ./onlyoffice/write-license.sh:/write-license.sh
     ports:
       - "8443:443"
@@ -247,8 +247,8 @@ services:
     read_only: true
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - nextcloud_certs_archive:/etc/nginx/certs/archive/nextcloud2.fairagro.net:ro
-      - nextcloud_certs_live:/etc/nginx/certs/live/nextcloud2.fairagro.net:ro
+      - nextcloud_certs_archive:/etc/nginx/certs/archive/nextcloud.fairagro.net:ro
+      - nextcloud_certs_live:/etc/nginx/certs/live/nextcloud.fairagro.net:ro
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - nextcloud:/var/www/html:ro
       - ./nginx/99_nextcloud_fpm_status_credentials.sh:/docker-entrypoint.d/99_nextcloud_fpm_status_credentials.sh:ro
@@ -275,10 +275,10 @@ services:
     image: alpine
     command: sh -c "chown -R 101:1000 /etc/letsencrypt /var/log/letsencrypt /var/lib/letsencrypt"
     volumes:
-      - nextcloud_certs_archive:/etc/letsencrypt/archive/nextcloud2.fairagro.net:rw
-      - nextcloud_certs_live:/etc/letsencrypt/live/nextcloud2.fairagro.net:rw
-      - onlyoffice_certs_archive:/etc/letsencrypt/archive/onlyoffice2.fairagro.net:rw
-      - onlyoffice_certs_live:/etc/letsencrypt/live/onlyoffice2.fairagro.net:rw
+      - nextcloud_certs_archive:/etc/letsencrypt/archive/nextcloud.fairagro.net:rw
+      - nextcloud_certs_live:/etc/letsencrypt/live/nextcloud.fairagro.net:rw
+      - onlyoffice_certs_archive:/etc/letsencrypt/archive/onlyoffice.fairagro.net:rw
+      - onlyoffice_certs_live:/etc/letsencrypt/live/onlyoffice.fairagro.net:rw
       - certbot_config:/etc/letsencrypt:rw
       - certbot_logs:/var/log/letsencrypt:rw
       - certbot_work:/var/lib/letsencrypt:rw
@@ -292,18 +292,18 @@ services:
       - certbot_init
     read_only: true
     volumes:
-      - nextcloud_certs_archive:/etc/letsencrypt/archive/nextcloud2.fairagro.net:rw
-      - nextcloud_certs_live:/etc/letsencrypt/live/nextcloud2.fairagro.net:rw
-      - onlyoffice_certs_archive:/etc/letsencrypt/archive/onlyoffice2.fairagro.net:rw
-      - onlyoffice_certs_live:/etc/letsencrypt/live/onlyoffice2.fairagro.net:rw
+      - nextcloud_certs_archive:/etc/letsencrypt/archive/nextcloud.fairagro.net:rw
+      - nextcloud_certs_live:/etc/letsencrypt/live/nextcloud.fairagro.net:rw
+      - onlyoffice_certs_archive:/etc/letsencrypt/archive/onlyoffice.fairagro.net:rw
+      - onlyoffice_certs_live:/etc/letsencrypt/live/onlyoffice.fairagro.net:rw
       - ./certbot/run-certbot.sh:/run-certbot.sh:ro
       - certbot_config:/etc/letsencrypt:rw
       - certbot_logs:/var/log/letsencrypt:rw
       - certbot_work:/var/lib/letsencrypt:rw
     entrypoint: /run-certbot.sh
     environment:
-      - NEXTCLOUD_DOMAINS=nextcloud2.fairagro.net
-      - ONLYOFFICE_DOMAINS=onlyoffice2.fairagro.net
+      - NEXTCLOUD_DOMAINS=nextcloud.fairagro.net
+      - ONLYOFFICE_DOMAINS=onlyoffice.fairagro.net
       # folgende variablen werden via secret gesetzt:
       - CERTBOT_EMAIL
       - CLOUDFLARE_API_TOKEN
