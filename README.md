@@ -95,8 +95,12 @@ EOF
 
 ### Checkout this repo
 
+Besides checking out, we also need an empty file with special ownership that
+will be mounted into the nextcloud container.
+
 ```bash
 git clone https://github.com/fairagro/m4.1_basic_infrastructure_on_docker.git
+sudo install -o 82 -g 82 -m 0644 /dev/null m4.1_basic_infrastructure_on_docker/nextcloud/redis-session.ini
 ```
 
 ## How to deploy
