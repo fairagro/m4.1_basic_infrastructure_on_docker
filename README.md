@@ -82,17 +82,6 @@ echo 'vm.overcommit_memory=1' | sudo tee /etc/sysctl.d/99-redis-overcommit.conf
 sudo sysctl --system
 ```
 
-### Extend `/etc/hosts`
-
-Add `nextcloud.fairagro.net` and `onlyoffice.fairagro.net` to the `/etc/hosts` file:
-
-```bash
-sudo tee -a /etc/hosts <<EOF
-10.14.10.64 nextcloud.fairagro.net
-10.14.10.64 onlyoffice.fairagro.net
-EOF
-```
-
 ### Checkout this repo
 
 Besides checking out, we also need an empty file with special ownership that
