@@ -93,17 +93,26 @@ EOF
 ### Checkout this repo
 
 ```bash
-git clone git@github.com:fairagro/m4.1_basic_infrastructure_on_docker.git
+git clone https://github.com/fairagro/m4.1_basic_infrastructure_on_docker.git
 ```
 
 ## How to deploy
 
 This is how to deploy:
 
-```bash
-cd m4.1_basic_infrastructure_on_docker
-sops exec-env environments/productive/secrets.enc.yaml 'docker compose up -d'
-```
+* Set the `AGE_SECRET_KEY` variable to the private deployment key which can be
+  found in keepass:
+
+  ```bash
+  export AGE_SECRET_KEY='...'
+  ```
+
+* run docker compose
+
+  ```bash
+  cd m4.1_basic_infrastructure_on_docker
+  sops exec-env environments/productive/secrets.enc.yaml 'docker compose up -d'
+  ```
 
 ## Remark on the file `docker-compose.yml`
 
