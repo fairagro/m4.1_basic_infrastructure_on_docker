@@ -5,5 +5,6 @@ creation_rules:
       CC7B10CE8D78010ABB043F8DB1C462E90012ECFE,
       22E1B5B742AA7D66DB7FA859E5DB947DBEA3A7F4,
       97BAD070076E18F23DE40CF367FBD7D6A827909E
+    age: age1zxdmu3l4gm9hvrrz74cj4aa4c8fhm2r8cz9ldc66zw98c64j0qeq9jzjgu
     path_regex: \.enc\.yaml$
     format: yaml
