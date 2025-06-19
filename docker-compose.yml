@@ -108,6 +108,7 @@ services:
   onlyoffice:
     image: onlyoffice/documentserver-ee
     restart: unless-stopped
+    # Custom entrypoint: write license first, then start the document server
     entrypoint: ["/bin/sh", "-c", "/write-license.sh && /app/ds/run-document-server.sh"]
     environment:
       - DB_TYPE=postgres
@@ -121,7 +122,6 @@ services:
       - SSL_CERTIFICATE_PATH=/var/www/onlyoffice/Data/certs/live/onlyoffice2.fairagro.net/fullchain.pem
       - SSL_KEY_PATH=/var/www/onlyoffice/Data/certs/live/onlyoffice2.fairagro.net/privkey.pem
       - PGSSLCERT=/tmp/postgresql.crt
-      # - PGSSLMODE=require
       - ONLYOFFICE_LICENSE
     depends_on:
       - db

@@ -2,10 +2,10 @@
 
 set -eu
 
-echo "Writing license file..."
-LICENSE_FILE="/var/www/onlyoffice/Data/license.lic"
-if [ -n "$ONLYOFFICE_LICENSE" ]; then
-    echo "$ONLYOFFICE_LICENSE" > "$LICENSE_FILE";
-    chown ds:ds "$LICENSE_FILE";
-    chmod 400 "$LICENSE_FILE";
-fi;
+LICENSE_PATH="/var/www/onlyoffice/Data/license.lic"
+
+echo "$ONLYOFFICE_LICENSE" > "$LICENSE_PATH"
+chmod 644 "$LICENSE_PATH"
+# Set ownership to 'ds' user (OnlyOffice runs as this user internally)
+chown ds:ds "$LICENSE_PATH" || echo "⚠️  chown failed, skipping"
+echo "✅ License written to $LICENSE_PATH"
