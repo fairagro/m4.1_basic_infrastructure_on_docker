@@ -9,5 +9,3 @@ if [ -n "$ONLYOFFICE_LICENSE" ]; then
     chown ds:ds "$LICENSE_FILE";
     chmod 400 "$LICENSE_FILE";
 fi;
-
-exec /app/ds/run-document-server.sh "$@"
