@@ -1,9 +1,9 @@
-#!/bin/sh
+#!/usr/bin/env sh
 
 # create-dbs.sh - Initializes databases for Nextcloud and OnlyOffice
 
 # Exit immediately if a command exits with a non-zero status
-set -e
+set -eu
 
 # Check that all required environment variables are set
 required_vars="POSTGRES_PASSWORD NEXTCLOUD_DB NEXTCLOUD_DB_USER NEXTCLOUD_DB_PASSWORD ONLYOFFICE_DB ONLYOFFICE_DB_USER ONLYOFFICE_DB_PASSWORD"
