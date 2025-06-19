@@ -11,7 +11,7 @@ while :; do
     sleep 43200
     certbot renew \
         --dns-cloudflare \
-        --dns-cloudflare-credentials /cloudflare.ini \
+        --dns-cloudflare-credentials /tmp/cloudflare.ini \
         --non-interactive \
         --quiet
     echo '✅ Renewal check complete...'

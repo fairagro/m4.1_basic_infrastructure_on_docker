@@ -9,11 +9,21 @@ performed directly on the target machine.
 ### Install requires packages
 
 ```bash
-sudo apt-get update && sudo apt-get install \
+sudo dnf update && sudo dnf install -y \
     git \
     gpg \
     ca-certificates \
     curl
+```
+
+### Install age
+
+```bash
+VERSION=$(curl -s https://api.github.com/repos/FiloSottile/age/releases/latest | grep tag_name | cut -d '"' -f4)
+curl -Lo /tmp/age.tar.gz "https://github.com/FiloSottile/age/releases/download/${VERSION}/age-${VERSION}-linux-amd64.tar.gz"
+tar -xzf /tmp/age.tar.gz -C /tmp
+sudo install /tmp/age/age /tmp/age/age-keygen /usr/local/bin/
+rm -rf /tmp/age /tmp/age.tar.gz
 ```
 
 ### Install sops
@@ -25,6 +35,8 @@ sudo chmod +x /usr/local/bin/sops
 ```
 
 ### Install docker
+
+on ubuntu/debian:
 
 ```bash
 for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done
@@ -42,13 +54,29 @@ sudo apt-get update && sudo apt-get install \
   docker-compose-plugin
 ```
 
+on AlmaLinux/RedHat:
+
+```bash
+sudo dnf remove docker \
+                  docker-client \
+                  docker-client-latest \
+                  docker-common \
+                  docker-latest \
+                  docker-latest-logrotate \
+                  docker-logrotate \
+                  docker-engine
+sudo dnf -y install dnf-plugins-core
+sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+
 ### Enable overcommit
 
 This is a host setting that is needed by redis:
 
 ```bash
 echo 'vm.overcommit_memory=1' | sudo tee /etc/sysctl.d/99-redis-overcommit.conf
-sysctl --system
+sudo sysctl --system
 ```
 
 ### Extend `/etc/hosts`
@@ -56,25 +84,35 @@ sysctl --system
 Add `nextcloud.fairagro.net` and `onlyoffice.fairagro.net` to the `/etc/hosts` file:
 
 ```bash
-sudo cat >> /etc/hosts <<EOF
+sudo tee -a /etc/hosts <<EOF
 10.14.10.64 nextcloud.fairagro.net
 10.14.10.64 onlyoffice.fairagro.net
 EOF
+```
 
 ### Checkout this repo
 
 ```bash
-git clone git@github.com:fairagro/m4.1_basic_infrastructure_on_docker.git
+git clone https://github.com/fairagro/m4.1_basic_infrastructure_on_docker.git
 ```
 
 ## How to deploy
 
 This is how to deploy:
 
-```bash
-cd m4.1_basic_infrastructure_on_docker
-sops exec-env environments/productive/secrets.enc.yaml 'docker compose up -d'
-```
+* Set the `AGE_SECRET_KEY` variable to the private deployment key which can be
+  found in keepass:
+
+  ```bash
+  export AGE_SECRET_KEY='...'
+  ```
+
+* run docker compose
+
+  ```bash
+  cd m4.1_basic_infrastructure_on_docker
+  sops exec-env environments/productive/secrets.enc.yaml 'docker compose up -d'
+  ```
 
 ## Remark on the file `docker-compose.yml`
 
@@ -142,7 +180,6 @@ sudo grep dbpassword $NEXTCLOUD_BACKUP/config/config.php | cut -d "'" -f 4
 ```
 
 The `dbpassword` needs to be written to `environment/productive/secrets.enc.yaml`.
-
 
 ### Restore process
 
