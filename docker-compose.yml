@@ -134,6 +134,9 @@ services:
     networks:
       - onlyoffice-db-net
       - external-net
+    extra_hosts:
+      - "nextcloud2.fairagro.net:10.14.10.64"
+      - "onlyoffice2.fairagro.net:10.14.10.64"
     volumes:
       - onlyoffice_data:/var/www/onlyoffice/Data:rw
       - onlyoffice_logs:/var/log/onlyoffice:rw
