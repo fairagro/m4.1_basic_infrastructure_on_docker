@@ -4,11 +4,12 @@
 # We cannot mount additional config files into /var/www/html/config/
 # because this is a mounted directory itself. docker compose cannot
 # relyably deal with this. So we write the config file here.
+PROXY_IP=$(getent hosts nginx-proxy | awk '{ print $1 }')
 cat > /var/www/html/config/proxy.config.php <<EOF
 <?php
 \$CONFIG = [
     'trusted_proxies' => [
-        0 => 'nginx-proxy',
+        '${PROXY_IP}',
     ],
     'forwarded_for_headers' => ['HTTP_X_FORWARDED_FOR'],
 ];
