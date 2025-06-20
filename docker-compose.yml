@@ -3,12 +3,12 @@ services:
     image: nextcloud:28.0.2-fpm-alpine
     restart: unless-stopped
     environment:
-      - POSTGRES_HOST=db
+      - POSTGRES_HOST=/var/run/postgresql
       - POSTGRES_DB=nextcloud
       - POSTGRES_USER=${NEXTCLOUD_DB_USER}
       - POSTGRES_PASSWORD=${NEXTCLOUD_DB_PASSWORD}
       - PGSSLCERT=/tmp/postgresql.crt
-      - REDIS_HOST=nextcloud-redis
+      - REDIS_HOST=/var/run/redis/redis.sock
       - SMTP_HOST=www623.your-server.de
       - SMTP_PORT=587
       - SMTP_SECURE=starttls
@@ -37,17 +37,14 @@ services:
     volumes:
       - nextcloud:/var/www/html:rw
       - nextcloud_data:/var/www/data:rw
+      - nextcloud_socket:/var/run/php:rw
+      - db_socket:/var/run/postgresql:rw
+      - redis_socket:/var/run/redis:rw
       - ./nextcloud/redis-session.ini:/usr/local/etc/php/conf.d/redis-session.ini:rw
       - ./nextcloud/nextcloud-config.sh:/docker-entrypoint-hooks.d/before-starting/nextcloud-config.sh:ro
       - ./nextcloud/nextcloud-apps.sh:/docker-entrypoint-hooks.d/before-starting/nextcloud-apps.sh:ro
       - ./nextcloud/php-fpm-www.conf:/usr/local/etc/php-fpm.d/www.conf:ro
-    expose:
-      - "9000"  # FPM
-      - "9001"  # FPM status
     networks:
-      - nextcloud-db-net
-      - nextcloud-redis-net
-      - nextcloud-nginx-net
       - external-net    # nextcloud needs internet access
     depends_on:
       - db
@@ -68,12 +65,12 @@ services:
     depends_on:
       - nextcloud
     environment:
-      - POSTGRES_HOST=db
+      - POSTGRES_HOST=/var/run/postgresql
       - POSTGRES_DB=nextcloud
       - POSTGRES_USER=${NEXTCLOUD_DB_USER}
       - POSTGRES_PASSWORD=${NEXTCLOUD_DB_PASSWORD}
       - PGSSLCERT=/tmp/postgresql.crt
-      - REDIS_HOST=nextcloud-redis
+      - REDIS_HOST=/var/run/redis/redis.sock
       - SMTP_HOST=www623.your-server.de
       - SMTP_PORT=587
       - SMTP_SECURE=starttls
@@ -95,11 +92,11 @@ services:
     volumes:
       - nextcloud:/var/www/html:rw
       - nextcloud_data:/var/www/data:rw
+      - db_socket:/var/run/postgresql:rw
+      - redis_socket:/var/run/redis:rw
       - ./nextcloud/redis-session.ini:/usr/local/etc/php/conf.d/redis-session.ini:ro
       - ./nextcloud/php-fpm-www.conf:/usr/local/etc/php-fpm.d/www.conf:ro
     networks:
-      - nextcloud-db-net
-      - nextcloud-redis-net
       - external-net    # nextcloud needs internet access
     cap_drop:
       - ALL
@@ -196,7 +193,9 @@ services:
         -c max_parallel_workers='4'
         -c max_parallel_maintenance_workers='2'
     restart: unless-stopped
-    user: "70"
+    user: "70:1000"
+    depends_on:
+      - init
     environment:
       - NEXTCLOUD_DB=nextcloud
       - ONLYOFFICE_DB=onlyoffice
@@ -210,10 +209,10 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data:rw
       - db_run:/var/run/postgresql:rw
+      - db_socket:/var/run/postgresql:rw
       - ./postgresql/create-pg_hba_conf.sh:/docker-entrypoint-initdb.d/create-pg_hba_conf.sh:ro
       - ./postgresql/create-dbs.sh:/docker-entrypoint-initdb.d/create-dbs.sh:ro
     networks:
-      - nextcloud-db-net
       - onlyoffice-db-net
     security_opt:
       - no-new-privileges:true
@@ -226,13 +225,17 @@ services:
     restart: unless-stopped
     command: >
       redis-server
-      --bind nextcloud-redis
+        --unixsocket /var/run/redis/redis.sock
+        --unixsocketperm 770
+        --port 0
       --requirepass "$REDIS_HOST_PASSWORD"
+    depends_on:
+      - init
     environment:
       # folgende variablen werden via secret gesetzt:
       - REDIS_HOST_PASSWORD
-    networks:
-      - nextcloud-redis-net
+    volumes:
+      - redis_socket:/var/run/redis:rw
     security_opt:
       - no-new-privileges:true
     read_only: true
@@ -250,6 +253,7 @@ services:
       - "9000:9000"
     read_only: true
     volumes:
+      - nextcloud_socket:/var/run/php:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - nextcloud_certs_archive:/etc/nginx/certs/archive/nextcloud.fairagro.net:ro
       - nextcloud_certs_live:/etc/nginx/certs/live/nextcloud.fairagro.net:ro
@@ -261,7 +265,6 @@ services:
     depends_on:
       - certbot
     networks:
-      - nextcloud-nginx-net
       - external-net
     security_opt:
       - no-new-privileges:true
@@ -275,9 +278,14 @@ services:
       - /tmp
       - /run:uid=101,gid=1000,mode=700
 
-  certbot_init:
+  init:
     image: alpine
-    command: sh -c "chown -R 101:1000 /etc/letsencrypt /var/log/letsencrypt /var/lib/letsencrypt"
+    command: >
+      sh -c " \
+        chown -R 101:1000 /etc/letsencrypt /var/log/letsencrypt /var/lib/letsencrypt &&
+        chown -R 70:1000 /var/run/postgresql && chmod -R g+w /var/run/postgresql && \
+        chown -R 999:1000 /var/run/redis && chmod -R g+w /var/run/redis \
+      "
     volumes:
       - nextcloud_certs_archive:/etc/letsencrypt/archive/nextcloud.fairagro.net:rw
       - nextcloud_certs_live:/etc/letsencrypt/live/nextcloud.fairagro.net:rw
@@ -286,6 +294,8 @@ services:
       - certbot_config:/etc/letsencrypt:rw
       - certbot_logs:/var/log/letsencrypt:rw
       - certbot_work:/var/lib/letsencrypt:rw
+      - db_socket:/var/run/postgresql:rw
+      - redis_socket:/var/run/redis:rw
     restart: "no"
 
   certbot:
@@ -293,7 +303,7 @@ services:
     restart: unless-stopped
     user: "101:1000"  # Ein normaler User ohne Rootrechte
     depends_on:
-      - certbot_init
+      - init
     read_only: true
     volumes:
       - nextcloud_certs_archive:/etc/letsencrypt/archive/nextcloud.fairagro.net:rw
@@ -323,6 +333,7 @@ volumes:
   nextcloud_data:
   nextcloud_certs_archive:
   nextcloud_certs_live:
+  nextcloud_socket:
   onlyoffice_data:
   onlyoffice_logs:
   onlyoffice_lib:
@@ -330,25 +341,18 @@ volumes:
   onlyoffice_certs_live:
   db_data:
   db_run:
+  db_socket:
   nginx_html:
   certbot_config:
   certbot_logs:
   certbot_work:
+  redis_socket:
 
 networks:
-  nextcloud-db-net:
-    internal: true
-    ipam:
-      config:
-        - subnet: 172.31.255.0/28
   onlyoffice-db-net:
     internal: true
     ipam:
       config:
         - subnet: 172.31.254.0/28
-  nextcloud-redis-net:
-    internal: true
-  nextcloud-nginx-net:
-    internal: true
   external-net:
     internal: false

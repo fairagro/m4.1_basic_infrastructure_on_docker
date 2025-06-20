@@ -15,6 +15,23 @@ cat > /var/www/html/config/proxy.config.php <<EOF
 ];
 EOF
 
+# *** Nextcloud redis configuration ***
+# This config is meant to use redis via unix domain sockets. Nevertheless
+# you have to specify the socket file in terms of the env var REDIS_HOST.
+cat > /var/www/html/config/redis.config.php <<EOF
+<?php
+\$CONFIG = [
+    'memcache.distributed' => '\\OC\\Memcache\\Redis',
+    'memcache.locking' => '\\OC\\Memcache\\Redis',
+    'redis' => array(
+        'host' => getenv('REDIS_HOST'),
+        'port' => 0,
+        'timeout' => 0.0,
+        'password' => (string) getenv('REDIS_HOST_PASSWORD'),
+    ],
+];
+EOF
+
 # *** Nextcloud cron configuration ***
 cat > /var/www/html/config/cron.config.php <<EOF
 <?php
