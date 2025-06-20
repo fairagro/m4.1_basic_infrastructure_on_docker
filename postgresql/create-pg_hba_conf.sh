@@ -19,8 +19,4 @@ local        nextcloud       nextcloud                          scram-sha-256
 # Allow onlyoffice connections from dedicated network (unix domain sockets do
 # not work fpr onlyoffice)
 hostnossl    onlyoffice      onlyoffice      172.31.254.0/28    scram-sha-256
-
-# Optional: Allow localhost (e.g. for manual `psql` inside container)
-hostnossl    all             all             127.0.0.1/32       scram-sha-256
-hostnossl    all             all             ::1/128            scram-sha-256
 EOF
