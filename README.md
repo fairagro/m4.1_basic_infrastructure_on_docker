@@ -13,7 +13,8 @@ sudo dnf update && sudo dnf install -y \
     git \
     gpg \
     ca-certificates \
-    curl
+    curl \
+    rsync
 ```
 
 ### Install age
@@ -208,6 +209,7 @@ sudo rsync -a --numeric-ids --times --devices --specials --perms --acls --xattrs
 sudo mv $NEXTCLOUD_DATA_HOST_PATH/appdata_$OLD_INSTANCEID $TEMP/appdata_$NEW_INSTANCEID
 [ -n "$NEXTCLOUD_DATA_HOST_PATH" ] && sudo sh -c "rm -rf $NEXTCLOUD_DATA_HOST_PATH/appdata_*"
 sudo mv $TEMP/appdata_$NEW_INSTANCEID $NEXTCLOUD_DATA_HOST_PATH/
+[ -n "$TEMP" ] && sudo rm -rf "$TEMP"
 docker exec -i m41_basic_infrastructure_on_docker-db-1 su - postgres -c 'psql -c "DROP DATABASE \"nextcloud\""'
 cat $DB_BACKUP | docker exec -i m41_basic_infrastructure_on_docker-db-1 su - postgres -c 'psql'
 docker exec -it m41_basic_infrastructure_on_docker-nextcloud-1 /var/www/html/occ maintenance:mode --off
