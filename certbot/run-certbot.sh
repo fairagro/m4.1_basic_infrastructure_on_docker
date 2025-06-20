@@ -37,7 +37,9 @@ while :; do
       --work-dir /var/lib/letsencrypt \
       -v \
       -d "$ONLYOFFICE_DOMAINS"
-      echo '✅ Cert requet/renewal for onlyoffice complete...'
+    chgrp -R 1000 /etc/letsencrypt/live/onlyoffice.fairagro.net
+    chmod -R g+r /etc/letsencrypt/live/onlyoffice.fairagro.net
+    echo '✅ Cert requet/renewal for onlyoffice complete...'
 
-      sleep 43200
+    sleep 43200
 done
