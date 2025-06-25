@@ -3,11 +3,6 @@ reverse_proxy:
     reverseproxy:
       ansible_host: 188.34.195.248
 
-keycloak:
-  hosts:
-    keycloak:
-      ansible_host: 168.119.123.145
-
 limesurvey:
   hosts:
     limesurvey:
