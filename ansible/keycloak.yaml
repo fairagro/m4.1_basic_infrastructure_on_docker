@@ -1,0 +1,20 @@
+- hosts: keycloak
+  roles:
+    # Run these once, then comment them out
+    #- firewalld
+    #- fail2ban
+    #- sshd
+    - keycloak
+    # This is the kitchen-sink install, only try this if the docker-compose doesnt work ...
+    #- middleware_automation.keycloak.keycloak_quarkus
+
+  vars:
+    keycloak_quarkus_bootstrap_admin_password: "{{ admin_password }}"
+    keycloak_quarkus_hostname: localhost
+    keycloak_quarkus_port: 8443
+    keycloak_quarkus_log: file
+    keycloak_quarkus_start_dev: false
+    keycloak_quarkus_proxy_mode: none
+
+  vars_files:
+    - vault.yml

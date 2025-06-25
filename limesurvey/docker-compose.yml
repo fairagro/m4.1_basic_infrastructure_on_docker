@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  db:
+    # doesn't have all the schema/extensions
+    #image: postgres:16
+    # pulls in too much crap
+    #image: postgresai/extended-postgres:16
+    #image: ghcr.io/cloudnative-pg/postgresql:16.1-19
+    # special locally built extension with set_user + pg_stat_kcache
+    #image: db-custom-postgres:16-with-extensions
+    # specifically use 16.3 postgres, same as for k8s
+    image: custom-postgres:16-3-with-extensions
+    container_name: limesurvey_db
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: limesurvey
+      POSTGRES_DB: limesurvey
+    volumes:
+      - db_data:/var/lib/postgresql/data # volume is actually 'limesurvey_db_data' ...
+      - ./db-init/01-globals.sql:/01-globals.sql
+      - ./db-init/02-limesurvey.sql:/02-limesurvey.sql
+
+  limesurvey:
+    image: martialblog/limesurvey:6.5.15-240701-apache
+    container_name: limesurvey_app
+    depends_on:
+      - db
+    ports:
+      - "8080:80"
+    environment:
+      DB_TYPE: pgsql
+      DB_PORT: 5432
+      DB_HOST: db
+      DB_NAME: limesurvey
+      DB_USER: limesurvey
+      DB_PASSWORD: 
+      ADMIN_USER: admin
+      ADMIN_PASSWORD: 
+      ADMIN_NAME: Lime Admin
+      ADMIN_EMAIL: david.arnold@zalf.de
+    volumes:
+      - limesurvey_upload:/var/www/html/upload
+      #- ./files/config.php:/var/www/html/application/config/config.php
+
+  certbot_init:
+    image: alpine
+    command: sh -c "chown -R 101:1000 /etc/letsencrypt /var/log/letsencrypt /var/lib/letsencrypt"
+    volumes:
+      - nginx_certs:/etc/letsencrypt:rw
+      - certbot_logs:/var/log/letsencrypt:rw
+      - certbot_work:/var/lib/letsencrypt:rw
+    restart: "no"
+
+  certbot:
+    image: certbot/dns-cloudflare
+    restart: "no"
+    user: "101:1000"  # Ein normaler User ohne Rootrechte
+    depends_on:
+      - certbot_init
+    read_only: true
+    volumes:
+      - nginx_certs:/etc/letsencrypt:rw
+      - ./certbot/run-certbot.sh:/run-certbot.sh:ro
+      - certbot_logs:/var/log/letsencrypt:rw
+      - certbot_work:/var/lib/letsencrypt:rw
+    entrypoint: /run-certbot.sh
+    environment:
+      - CERTBOT_DOMAINS=survey.fairagro.net
+      - CERTBOT_EMAIL=david.arnold@zalf.de
+      # Only needed once really, during initial letsencrypt-acme 
+      # for now, fill from keepass, it's too strong ..
+      # another option is to get it working via SOPs
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
+
+  nginx:
+    image: nginx:alpine
+    container_name: limesurvey_nginx
+    depends_on:
+      - limesurvey
+    ports:
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # this is the volume prepared by letsencrypt and mounted at this location
+      - nginx_certs:/etc/nginx/certs:ro 
+
+volumes:
+  db_data:
+  limesurvey_upload:
+  nginx_certs:
+  certbot_logs:
+  certbot_work:

@@ -1,0 +1,24 @@
+- name: scope
+  become: True
+  tags:
+    - keycloak
+  block:
+    - name: Install some useful packages
+      ansible.builtin.dnf:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - bash-completion
+        - tcpdump
+        - bind-utils
+
+    - name: Allow ports in firewalld
+      ansible.posix.firewalld:
+        #port: 8443/tcp
+        port: "{{ item }}"
+        permanent: yes
+        state: enabled
+        immediate: yes
+      loop:
+        - 8443/tcp
+        - 9000/tcp
