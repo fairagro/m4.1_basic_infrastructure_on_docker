@@ -22,6 +22,8 @@ ansible-playbook -i hosts.yaml limesurvey.yaml -u ansible --private-key <key_loc
 ansible-playbook -i hosts.yaml limesurvey.yaml -u ansible --private-key <key_location> --check --diff  # sanity check, output not 100% matches real run
 ansible-playbook -i hosts.yaml limesurvey.yaml -u ansible # run it for real
 
+The vault.yml file was something I setup when investigating a different ansible-limesurvey implementation, and probably should be removed
+
 ### Cloudflare notes (for Letsencrypt)
 
 Create an API token with the following particulars:
