@@ -23,7 +23,7 @@ cat > /var/www/html/config/redis.config.php <<EOF
 \$CONFIG = [
     'memcache.distributed' => '\\OC\\Memcache\\Redis',
     'memcache.locking' => '\\OC\\Memcache\\Redis',
-    'redis' => array(
+    'redis' => [
         'host' => getenv('REDIS_HOST'),
         'port' => 0,
         'timeout' => 0.0,
