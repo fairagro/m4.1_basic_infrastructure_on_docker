@@ -247,7 +247,7 @@ services:
     tmpfs:
       - /tmp
       - /run
-      - /data
+      - /data:uid=999,gid=1000,mode=770
 
   nginx-proxy:
     image: nginxinc/nginx-unprivileged:1.25-alpine
