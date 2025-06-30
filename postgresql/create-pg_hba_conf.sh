@@ -15,6 +15,8 @@ local        all             postgres                           peer
 
 # Allow nextcloud connections via unix domain sockets
 local        nextcloud       nextcloud                          scram-sha-256
+# The nextcloud initialization also requires access to the postgres database
+local        postgres        nextcloud                          scram-sha-256
 
 # Allow onlyoffice connections from dedicated network (unix domain sockets do
 # not work fpr onlyoffice)
