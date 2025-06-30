@@ -44,6 +44,7 @@ services:
       - ./nextcloud/nextcloud-config.sh:/docker-entrypoint-hooks.d/before-starting/nextcloud-config.sh:ro
       - ./nextcloud/nextcloud-apps.sh:/docker-entrypoint-hooks.d/before-starting/nextcloud-apps.sh:ro
       - ./nextcloud/php-fpm-www.conf:/usr/local/etc/php-fpm.d/www.conf:ro
+      - ./nextcloud/zz-docker.conf:/usr/local/etc/php-fpm.d/zz-docker.conf:ro
     networks:
       - external-net    # nextcloud needs internet access
     depends_on:
@@ -97,6 +98,7 @@ services:
       - redis_socket:/var/run/redis:rw
       - ./nextcloud/redis-session.ini:/usr/local/etc/php/conf.d/redis-session.ini:ro
       - ./nextcloud/php-fpm-www.conf:/usr/local/etc/php-fpm.d/www.conf:ro
+      - ./nextcloud/zz-docker.conf:/usr/local/etc/php-fpm.d/zz-docker.conf:ro
     networks:
       - external-net    # nextcloud needs internet access
     cap_drop:
