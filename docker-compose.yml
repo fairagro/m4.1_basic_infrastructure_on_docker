@@ -18,6 +18,7 @@ services:
       - ONLYOFFICE_SERVER=onlyoffice.fairagro.net
       - NEXTCLOUD_TRUSTED_DOMAINS=nextcloud.fairagro.net
       - NEXTCLOUD_DATA_DIR=/var/www/data
+      - TRUSTED_PROXIES=10.14.10.21
       # these variables are set via secrets:
       # (TODO:we could alternatively rely on docker secrets, but it's unclear if this
       # is also supported by the postgres database container/

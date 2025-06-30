@@ -5,13 +5,46 @@
 # because this is a mounted directory itself. docker compose cannot
 # relyably deal with this. So we write the config file here.
 PROXY_IP=$(getent hosts nginx-proxy | awk '{ print $1 }')
-cat > /var/www/html/config/proxy.config.php <<EOF
+cat > /var/www/html/config/reverse-proxy.config.php <<EOF
 <?php
-\$CONFIG = [
-    'trusted_proxies' => [
-        '${PROXY_IP}',
-    ],
-    'forwarded_for_headers' => ['HTTP_X_FORWARDED_FOR'],
+\$overwriteHost = getenv('OVERWRITEHOST');
+if (\$overwriteHost) {
+  \$CONFIG['overwritehost'] = \$overwriteHost;
+}
+
+\$overwriteProtocol = getenv('OVERWRITEPROTOCOL');
+if (\$overwriteProtocol) {
+  \$CONFIG['overwriteprotocol'] = \$overwriteProtocol;
+}
+
+\$overwriteCliUrl = getenv('OVERWRITECLIURL');
+if (\$overwriteCliUrl) {
+  \$CONFIG['overwrite.cli.url'] = \$overwriteCliUrl;
+}
+
+\$overwriteWebRoot = getenv('OVERWRITEWEBROOT');
+if (\$overwriteWebRoot) {
+  \$CONFIG['overwritewebroot'] = \$overwriteWebRoot;
+}
+
+\$overwriteCondAddr = getenv('OVERWRITECONDADDR');
+if (\$overwriteCondAddr) {
+  \$CONFIG['overwritecondaddr'] = \$overwriteCondAddr;
+}
+
+\$CONFIG['trusted_proxies'] = [
+    '${PROXY_IP}',
+];
+\$trustedProxies = getenv('TRUSTED_PROXIES');
+if (\$trustedProxies) {
+  \$CONFIG['trusted_proxies'] = array_merge(
+    \$CONFIG['trusted_proxies'],
+    array_filter(array_map('trim', explode(' ', \$trustedProxies)))
+  );
+}
+
+\$CONFIG['forwarded_for_headers'] = [
+    'HTTP_X_FORWARDED_FOR',
 ];
 EOF
 
