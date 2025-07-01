@@ -19,9 +19,11 @@ php /var/www/html/occ app:install calendar
 php /var/www/html/occ app:install deck
 php /var/www/html/occ app:install announcementcenter
 
+# Enable wanted apps
+php /var/www/html/occ app:enable bruteforcesettings
+
 # Disable unwanted apps
 php /var/www/html/occ app:disable admin_audit
-php /var/www/html/occ app:disable bruteforcesettings
 php /var/www/html/occ app:disable encryption
 php /var/www/html/occ app:disable files_external
 php /var/www/html/occ app:disable firstrunwizard
