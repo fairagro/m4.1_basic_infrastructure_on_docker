@@ -9,31 +9,26 @@ services:
       - POSTGRES_PASSWORD=${NEXTCLOUD_DB_PASSWORD}
       - PGSSLCERT=/tmp/postgresql.crt
       - REDIS_HOST=/var/run/redis/redis.sock
-      - SMTP_HOST=www623.your-server.de
-      - SMTP_PORT=587
-      - SMTP_SECURE=starttls
-      - SMTP_AUTHTYPE=LOGIN
-      - MAIL_FROM_ADDRESS=nextcloud
-      - MAIL_DOMAIN=fairagro.net
-      - ONLYOFFICE_SERVER=onlyoffice.fairagro.net
-      - NEXTCLOUD_TRUSTED_DOMAINS=nextcloud.fairagro.net
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_SECURE=${SMTP_SECURE}
+      - SMTP_AUTHTYPE=${SMTP_AUTHTYPE}
+      - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS}
+      - MAIL_DOMAIN=${MAIL_DOMAIN}
+      - ONLYOFFICE_SERVER=${ONLYOFFICE_FQDN}
+      - NEXTCLOUD_TRUSTED_DOMAINS=${NEXTCLOUD_FQDN}
       - NEXTCLOUD_DATA_DIR=/var/www/data
-      - TRUSTED_PROXIES=10.14.10.21
-      # these variables are set via secrets:
-      # (TODO:we could alternatively rely on docker secrets, but it's unclear if this
-      # is also supported by the postgres database container/
-      # refer to: https://docs.docker.com/compose/how-tos/use-secrets/,
-      # We would need to define all variables ending in _FILE instead)
-      - NEXTCLOUD_ADMIN_USER
-      - NEXTCLOUD_ADMIN_PASSWORD
-      - SMTP_NAME
-      - SMTP_PASSWORD
-      - REDIS_HOST_PASSWORD
-      - ONLYOFFICE_JWT_SECRET
+      - TRUSTED_PROXIES=${INTERNAL_REVERSE_PROXY_IP}
+      - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER}
+      - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_USER}
+      - SMTP_NAME=${SMTP_NAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - REDIS_HOST_PASSWORD=${REDIS_HOST_PASSWORD}
+      - ONLYOFFICE_JWT_SECRET=${ONLYOFFICE_JWT_SECRET}
     user: "82:1000"
     extra_hosts:
-      - "nextcloud.fairagro.net:10.14.10.64"
-      - "onlyoffice.fairagro.net:10.14.10.64"
+      - "${NEXTCLOUD_FQDN}:${NEXTCLOUD_IP}"
+      - "${ONLYOFFICE_FQDN}:${ONLYOFFICE_IP}"
     read_only: false
     volumes:
       - nextcloud:/var/www/html:rw
@@ -74,23 +69,22 @@ services:
       - POSTGRES_PASSWORD=${NEXTCLOUD_DB_PASSWORD}
       - PGSSLCERT=/tmp/postgresql.crt
       - REDIS_HOST=/var/run/redis/redis.sock
-      - SMTP_HOST=www623.your-server.de
-      - SMTP_PORT=587
-      - SMTP_SECURE=starttls
-      - SMTP_AUTHTYPE=LOGIN
-      - MAIL_FROM_ADDRESS=nextcloud
-      - MAIL_DOMAIN=fairagro.net
-      - NEXTCLOUD_TRUSTED_DOMAINS=nextcloud.fairagro.net
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_SECURE=${SMTP_SECURE}
+      - SMTP_AUTHTYPE=${SMTP_AUTHTYPE}
+      - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS}
+      - MAIL_DOMAIN=${MAIL_DOMAIN}
+      - NEXTCLOUD_TRUSTED_DOMAINS=${NEXTCLOUD_FQDN}
       - NEXTCLOUD_DATA_DIR=/var/www/data
-      # these variables are set via secrets:
-      - NEXTCLOUD_ADMIN_USER
-      - NEXTCLOUD_ADMIN_PASSWORD
-      - SMTP_NAME
-      - SMTP_PASSWORD
-      - REDIS_HOST_PASSWORD
+      - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER}
+      - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_USER}
+      - SMTP_NAME=${SMTP_NAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - REDIS_HOST_PASSWORD=${REDIS_HOST_PASSWORD}
     extra_hosts:
-      - "nextcloud.fairagro.net:10.14.10.64"
-      - "onlyoffice.fairagro.net:10.14.10.64"
+      - "${NEXTCLOUD_FQDN}:${NEXTCLOUD_IP}"
+      - "${ONLYOFFICE_FQDN}:${ONLYOFFICE_IP}"
     read_only: true
     volumes:
       - nextcloud:/var/www/html:rw
@@ -126,8 +120,8 @@ services:
       - DB_PWD=${ONLYOFFICE_DB_PASSWORD}
       - JWT_ENABLED=true
       - JWT_SECRET=${ONLYOFFICE_JWT_SECRET}
-      - SSL_CERTIFICATE_PATH=/var/www/onlyoffice/Data/certs/live/onlyoffice.fairagro.net/fullchain.pem
-      - SSL_KEY_PATH=/var/www/onlyoffice/Data/certs/live/onlyoffice.fairagro.net/privkey.pem
+      - SSL_CERTIFICATE_PATH=/var/www/onlyoffice/Data/certs/live/${ONLYOFFICE_FQDN}/fullchain.pem
+      - SSL_KEY_PATH=/var/www/onlyoffice/Data/certs/live/${ONLYOFFICE_FQDN}/privkey.pem
       - PGSSLCERT=/tmp/postgresql.crt
       - ONLYOFFICE_LICENSE
     user: "0:1000"
@@ -137,14 +131,14 @@ services:
       - onlyoffice-db-net
       - external-net
     extra_hosts:
-      - "nextcloud.fairagro.net:10.14.10.64"
-      - "onlyoffice.fairagro.net:10.14.10.64"
+      - "${NEXTCLOUD_FQDN}:${NEXTCLOUD_IP}"
+      - "${ONLYOFFICE_FQDN}:${ONLYOFFICE_IP}"
     volumes:
       - onlyoffice_data:/var/www/onlyoffice/Data:rw
       - onlyoffice_logs:/var/log/onlyoffice:rw
       - onlyoffice_lib:/var/lib/onlyoffice:rw
-      - onlyoffice_certs_archive:/var/www/onlyoffice/Data/certs/archive/onlyoffice.fairagro.net:ro
-      - onlyoffice_certs_live:/var/www/onlyoffice/Data/certs/live/onlyoffice.fairagro.net:ro
+      - onlyoffice_certs_archive:/var/www/onlyoffice/Data/certs/archive/${ONLYOFFICE_FQDN}:ro
+      - onlyoffice_certs_live:/var/www/onlyoffice/Data/certs/live/${ONLYOFFICE_FQDN}:ro
       - ./onlyoffice/write-license.sh:/write-license.sh:ro
     ports:
       - "8443:443"
@@ -202,7 +196,6 @@ services:
     environment:
       - NEXTCLOUD_DB=nextcloud
       - ONLYOFFICE_DB=onlyoffice
-      # folgende variablen werden via secret gesetzt:
       - POSTGRES_PASSWORD
       - NEXTCLOUD_DB_USER
       - NEXTCLOUD_DB_PASSWORD
@@ -236,7 +229,6 @@ services:
     depends_on:
       - init
     environment:
-      # folgende variablen werden via secret gesetzt:
       - REDIS_HOST_PASSWORD
     volumes:
       - redis_socket:/var/run/redis:rw
@@ -261,8 +253,8 @@ services:
     volumes:
       - nextcloud_socket:/var/run/php:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - nextcloud_certs_archive:/etc/nginx/certs/archive/nextcloud.fairagro.net:ro
-      - nextcloud_certs_live:/etc/nginx/certs/live/nextcloud.fairagro.net:ro
+      - nextcloud_certs_archive:/etc/nginx/certs/archive/${NEXTCLOUD_FQDN}:ro
+      - nextcloud_certs_live:/etc/nginx/certs/live/${NEXTCLOUD_FQDN}:ro
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - nextcloud:/var/www/html:ro
       - ./nginx/99_nextcloud_fpm_status_credentials.sh:/docker-entrypoint.d/99_nextcloud_fpm_status_credentials.sh:ro
@@ -294,10 +286,10 @@ services:
         chown -R 82:1000 /var/run/php && chmod -R g+w /var/run/php \
       "
     volumes:
-      - nextcloud_certs_archive:/etc/letsencrypt/archive/nextcloud.fairagro.net:rw
-      - nextcloud_certs_live:/etc/letsencrypt/live/nextcloud.fairagro.net:rw
-      - onlyoffice_certs_archive:/etc/letsencrypt/archive/onlyoffice.fairagro.net:rw
-      - onlyoffice_certs_live:/etc/letsencrypt/live/onlyoffice.fairagro.net:rw
+      - nextcloud_certs_archive:/etc/letsencrypt/archive/${NEXTCLOUD_FQDN}:rw
+      - nextcloud_certs_live:/etc/letsencrypt/live/${NEXTCLOUD_FQDN}:rw
+      - onlyoffice_certs_archive:/etc/letsencrypt/archive/${ONLYOFFICE_FQDN}:rw
+      - onlyoffice_certs_live:/etc/letsencrypt/live/${ONLYOFFICE_FQDN}:rw
       - certbot_config:/etc/letsencrypt:rw
       - certbot_logs:/var/log/letsencrypt:rw
       - certbot_work:/var/lib/letsencrypt:rw
@@ -314,19 +306,18 @@ services:
       - init
     read_only: true
     volumes:
-      - nextcloud_certs_archive:/etc/letsencrypt/archive/nextcloud.fairagro.net:rw
-      - nextcloud_certs_live:/etc/letsencrypt/live/nextcloud.fairagro.net:rw
-      - onlyoffice_certs_archive:/etc/letsencrypt/archive/onlyoffice.fairagro.net:rw
-      - onlyoffice_certs_live:/etc/letsencrypt/live/onlyoffice.fairagro.net:rw
+      - nextcloud_certs_archive:/etc/letsencrypt/archive/${NEXTCLOUD_FQDN}:rw
+      - nextcloud_certs_live:/etc/letsencrypt/live/${NEXTCLOUD_FQDN}:rw
+      - onlyoffice_certs_archive:/etc/letsencrypt/archive/${ONLYOFFICE_FQDN}:rw
+      - onlyoffice_certs_live:/etc/letsencrypt/live/${ONLYOFFICE_FQDN}:rw
       - ./certbot/run-certbot.sh:/run-certbot.sh:ro
       - certbot_config:/etc/letsencrypt:rw
       - certbot_logs:/var/log/letsencrypt:rw
       - certbot_work:/var/lib/letsencrypt:rw
     entrypoint: /run-certbot.sh
     environment:
-      - NEXTCLOUD_DOMAINS=nextcloud.fairagro.net
-      - ONLYOFFICE_DOMAINS=onlyoffice.fairagro.net
-      # folgende variablen werden via secret gesetzt:
+      - NEXTCLOUD_FQDN
+      - ONLYOFFICE_FQDN
       - CERTBOT_EMAIL
       - CLOUDFLARE_API_TOKEN
     security_opt:

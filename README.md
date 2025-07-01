@@ -183,7 +183,7 @@ The `dbpassword` needs to be written to `environment/productive/secrets.enc.yaml
 ### Restore process
 
 ```bash
-sops exec-env environments/productive/secrets.enc.yaml 'docker compose up -d'
+sops exec-env environments/prod/secrets.enc.yaml 'docker compose --env-file environments/prod/values.env up -d'
 docker exec -it m41_basic_infrastructure_on_docker-nextcloud-1 /var/www/html/occ maintenance:mode --on
 ```
 
