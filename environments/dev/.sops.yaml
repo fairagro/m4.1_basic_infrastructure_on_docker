@@ -1,0 +1,6 @@
+creation_rules:
+  - pgp: >-
+      CC7B10CE8D78010ABB043F8DB1C462E90012ECFE
+    age: age1fm5ve98kwgwp4ad0gdqv6mepgrfujqc88kx28lypnylncg3afshq8lfacf
+    path_regex: \.enc\.yaml$
+    format: yaml
