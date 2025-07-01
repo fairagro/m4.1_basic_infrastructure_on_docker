@@ -49,9 +49,25 @@ neest major release. Do not skip major releases!
    we can currently do is deactivating the app:
 
    ```bash
-   php occ app:disable files_markdown
+   ./occ app:disable files_markdown
    ```
 
    Now return to the Settings Overview page an press the `Rescan` button in
    the error message (it's currently unclear how to perform this from the
    command line).
+
+## Lost user directories
+
+A `./occ files:scan --all` revealed these missing user directories:
+
+```text
+Path not found: User folder /var/www/data/angela.kranz/ exists in cache but not on disk
+Path not found: User folder /var/www/data/b.usadel/ exists in cache but not on disk
+Path not found: User folder /var/www/data/celina.thomas/ exists in cache but not on disk
+Path not found: User folder /var/www/data/Karolina.Witzki/ exists in cache but not on disk
+Path not found: User folder /var/www/data/lindstaedt/ exists in cache but not on disk
+Path not found: User folder /var/www/data/xaver.stiensmeier/ exists in cache but not on disk
+```
+
+Obviously they are not included in the most recent backup. It is unclear when
+they did get lost.
