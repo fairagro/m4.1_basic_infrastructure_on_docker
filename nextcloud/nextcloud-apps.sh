@@ -13,11 +13,13 @@ php /var/www/html/occ config:app:set onlyoffice jwt_secret --quiet --value=${ONL
 php /var/www/html/occ config:app:set onlyoffice customizationForcesave --value=true
 
 # Install additional apps
-# needed to forbid WebDAV access with Windows Explorer -- additional manual settings are required
 php /var/www/html/occ app:install files_accesscontrol
 php /var/www/html/occ app:install calendar
 php /var/www/html/occ app:install deck
 php /var/www/html/occ app:install announcementcenter
+
+# Remove outdated app
+php /var/www/html/occ app:remove files_markdown
 
 # Enable wanted apps
 php /var/www/html/occ app:enable bruteforcesettings
