@@ -7,7 +7,7 @@ php /var/www/html/occ app:install onlyoffice
 php /var/www/html/occ config:app:set onlyoffice DocumentServerUrl --value=https://${ONLYOFFICE_SERVER}/
 php /var/www/html/occ config:app:set onlyoffice DocumentServerInternalUrl --value=https://${ONLYOFFICE_SERVER}:8443/
 # For some reason we also we to set the (internal) StorageURL which is the nextcloud URL.
-php /var/www/html/occ config:app:set onlyoffice StorageUrl --value=https://${NEXTCLOUD_TRUSTED_DOMAINS}
+php /var/www/html/occ config:app:set onlyoffice StorageUrl --value=https://${NEXTCLOUD_TRUSTED_DOMAINS}/
 php /var/www/html/occ config:app:set onlyoffice jwt_secret --quiet --value=${ONLYOFFICE_JWT_SECRET}
 # Enable manual save
 php /var/www/html/occ config:app:set onlyoffice customizationForcesave --value=true
@@ -19,9 +19,11 @@ php /var/www/html/occ app:install calendar
 php /var/www/html/occ app:install deck
 php /var/www/html/occ app:install announcementcenter
 
+# Enable wanted apps
+php /var/www/html/occ app:enable bruteforcesettings
+
 # Disable unwanted apps
 php /var/www/html/occ app:disable admin_audit
-php /var/www/html/occ app:disable bruteforcesettings
 php /var/www/html/occ app:disable encryption
 php /var/www/html/occ app:disable files_external
 php /var/www/html/occ app:disable firstrunwizard

@@ -1,14 +1,14 @@
 services:
   nextcloud:
-    image: nextcloud:28.0.2-fpm-alpine
+    image: nextcloud@sha256:4414b2cb80792058385acdca02d7f340835cd391a69ff2c8cf21b4f09cf23f34 # 28.0.2-fpm-alpine
     restart: unless-stopped
     environment:
-      - POSTGRES_HOST=db
+      - POSTGRES_HOST=/var/run/postgresql
       - POSTGRES_DB=nextcloud
       - POSTGRES_USER=${NEXTCLOUD_DB_USER}
       - POSTGRES_PASSWORD=${NEXTCLOUD_DB_PASSWORD}
       - PGSSLCERT=/tmp/postgresql.crt
-      - REDIS_HOST=nextcloud-redis
+      - REDIS_HOST=/var/run/redis/redis.sock
       - SMTP_HOST=www623.your-server.de
       - SMTP_PORT=587
       - SMTP_SECURE=starttls
@@ -18,6 +18,7 @@ services:
       - ONLYOFFICE_SERVER=onlyoffice.fairagro.net
       - NEXTCLOUD_TRUSTED_DOMAINS=nextcloud.fairagro.net
       - NEXTCLOUD_DATA_DIR=/var/www/data
+      - TRUSTED_PROXIES=10.14.10.21
       # these variables are set via secrets:
       # (TODO:we could alternatively rely on docker secrets, but it's unclear if this
       # is also supported by the postgres database container/
@@ -37,17 +38,15 @@ services:
     volumes:
       - nextcloud:/var/www/html:rw
       - nextcloud_data:/var/www/data:rw
+      - nextcloud_socket:/var/run/php:rw
+      - db_socket:/var/run/postgresql:rw
+      - redis_socket:/var/run/redis:rw
       - ./nextcloud/redis-session.ini:/usr/local/etc/php/conf.d/redis-session.ini:rw
       - ./nextcloud/nextcloud-config.sh:/docker-entrypoint-hooks.d/before-starting/nextcloud-config.sh:ro
       - ./nextcloud/nextcloud-apps.sh:/docker-entrypoint-hooks.d/before-starting/nextcloud-apps.sh:ro
       - ./nextcloud/php-fpm-www.conf:/usr/local/etc/php-fpm.d/www.conf:ro
-    expose:
-      - "9000"  # FPM
-      - "9001"  # FPM status
+      - ./nextcloud/zz-docker.conf:/usr/local/etc/php-fpm.d/zz-docker.conf:ro
     networks:
-      - nextcloud-db-net
-      - nextcloud-redis-net
-      - nextcloud-nginx-net
       - external-net    # nextcloud needs internet access
     depends_on:
       - db
@@ -62,18 +61,19 @@ services:
   # This is a root container!
   # Probably we do not need all those env vars...
   nextcloud-cron:
-    image: nextcloud:28.0.2-fpm-alpine
+    image: nextcloud@sha256:4414b2cb80792058385acdca02d7f340835cd391a69ff2c8cf21b4f09cf23f34 # 28.0.2-fpm-alpine
     restart: unless-stopped
     entrypoint: /cron.sh
+    user: "0:1000"
     depends_on:
       - nextcloud
     environment:
-      - POSTGRES_HOST=db
+      - POSTGRES_HOST=/var/run/postgresql
       - POSTGRES_DB=nextcloud
       - POSTGRES_USER=${NEXTCLOUD_DB_USER}
       - POSTGRES_PASSWORD=${NEXTCLOUD_DB_PASSWORD}
       - PGSSLCERT=/tmp/postgresql.crt
-      - REDIS_HOST=nextcloud-redis
+      - REDIS_HOST=/var/run/redis/redis.sock
       - SMTP_HOST=www623.your-server.de
       - SMTP_PORT=587
       - SMTP_SECURE=starttls
@@ -95,11 +95,12 @@ services:
     volumes:
       - nextcloud:/var/www/html:rw
       - nextcloud_data:/var/www/data:rw
+      - db_socket:/var/run/postgresql:rw
+      - redis_socket:/var/run/redis:rw
       - ./nextcloud/redis-session.ini:/usr/local/etc/php/conf.d/redis-session.ini:ro
       - ./nextcloud/php-fpm-www.conf:/usr/local/etc/php-fpm.d/www.conf:ro
+      - ./nextcloud/zz-docker.conf:/usr/local/etc/php-fpm.d/zz-docker.conf:ro
     networks:
-      - nextcloud-db-net
-      - nextcloud-redis-net
       - external-net    # nextcloud needs internet access
     cap_drop:
       - ALL
@@ -112,7 +113,7 @@ services:
       - /tmp
 
   onlyoffice:
-    image: onlyoffice/documentserver-ee
+    image: onlyoffice/documentserver-ee@sha256:f6219abc67561a57d5ad3307a6aa816b291280fad40a43475f0335329dbdaa75 # 9.0.0.168
     restart: unless-stopped
     # Custom entrypoint: write license first, then start the document server
     entrypoint: ["/bin/sh", "-c", "/write-license.sh && /app/ds/run-document-server.sh"]
@@ -144,7 +145,7 @@ services:
       - onlyoffice_lib:/var/lib/onlyoffice:rw
       - onlyoffice_certs_archive:/var/www/onlyoffice/Data/certs/archive/onlyoffice.fairagro.net:ro
       - onlyoffice_certs_live:/var/www/onlyoffice/Data/certs/live/onlyoffice.fairagro.net:ro
-      - ./onlyoffice/write-license.sh:/write-license.sh
+      - ./onlyoffice/write-license.sh:/write-license.sh:ro
     ports:
       - "8443:443"
     security_opt:
@@ -161,7 +162,7 @@ services:
       - CAP_SYS_PTRACE
 
   db:
-    image: postgres:16-alpine
+    image: postgres@sha256:ef2235fd13b6cb29728a98ee17862ff5c9b7d20515a9b34804da4a45062695f6 # 16-alpine
     # Setting suggestions by https://pgtune.leopard.in.ua with this input:
     # DB Version: 16
     # OS Type: linux
@@ -170,7 +171,6 @@ services:
     # CPUs num: 4
     # Connections num: 30
     # Data Storage: san
-    # command: tail -f /dev/null
     command: >
       postgres
         -c listen_addresses='0.0.0.0'
@@ -196,7 +196,9 @@ services:
         -c max_parallel_workers='4'
         -c max_parallel_maintenance_workers='2'
     restart: unless-stopped
-    user: "70"
+    user: "70:1000"
+    depends_on:
+      - init
     environment:
       - NEXTCLOUD_DB=nextcloud
       - ONLYOFFICE_DB=onlyoffice
@@ -210,10 +212,10 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data:rw
       - db_run:/var/run/postgresql:rw
+      - db_socket:/var/run/postgresql:rw
       - ./postgresql/create-pg_hba_conf.sh:/docker-entrypoint-initdb.d/create-pg_hba_conf.sh:ro
       - ./postgresql/create-dbs.sh:/docker-entrypoint-initdb.d/create-dbs.sh:ro
     networks:
-      - nextcloud-db-net
       - onlyoffice-db-net
     security_opt:
       - no-new-privileges:true
@@ -222,27 +224,34 @@ services:
       - /run
 
   nextcloud-redis:
-    image: redis:alpine
+    image: redis@sha256:48501c5ad00d5563bc30c075c7bcef41d7d98de3e9a1e6c752068c66f0a8463b # 8.0.2-alpine
     restart: unless-stopped
     command: >
       redis-server
-      --bind nextcloud-redis
-      --requirepass "$REDIS_HOST_PASSWORD"
+        --unixsocket /var/run/redis/redis.sock
+        --unixsocketperm 770
+        --port 0
+        --requirepass "$REDIS_HOST_PASSWORD"
+    user: "999:1000"
+    depends_on:
+      - init
     environment:
       # folgende variablen werden via secret gesetzt:
       - REDIS_HOST_PASSWORD
-    networks:
-      - nextcloud-redis-net
+    volumes:
+      - redis_socket:/var/run/redis:rw
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
     read_only: true
     tmpfs:
       - /tmp
       - /run
-      - /data
+      - /data:uid=999,gid=1000,mode=770
 
   nginx-proxy:
-    image: nginxinc/nginx-unprivileged:1.25-alpine
+    image: nginxinc/nginx-unprivileged@sha256:8265b1df5a89cc1a0a067e472bf47aca7cee52f0561c98a0dff91312dcdd8adb # 1.25.5-alpine
     restart: unless-stopped
     ports:
       - "80:80"
@@ -250,6 +259,7 @@ services:
       - "9000:9000"
     read_only: true
     volumes:
+      - nextcloud_socket:/var/run/php:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - nextcloud_certs_archive:/etc/nginx/certs/archive/nextcloud.fairagro.net:ro
       - nextcloud_certs_live:/etc/nginx/certs/live/nextcloud.fairagro.net:ro
@@ -261,7 +271,6 @@ services:
     depends_on:
       - certbot
     networks:
-      - nextcloud-nginx-net
       - external-net
     security_opt:
       - no-new-privileges:true
@@ -275,9 +284,15 @@ services:
       - /tmp
       - /run:uid=101,gid=1000,mode=700
 
-  certbot_init:
-    image: alpine
-    command: sh -c "chown -R 101:1000 /etc/letsencrypt /var/log/letsencrypt /var/lib/letsencrypt"
+  init:
+    image: alpine@sha256:8a1f59ffb675680d47db6337b49d22281a139e9d709335b492be023728e11715 # 3.20.6
+    command: >
+      sh -c " \
+        chown -R 101:1000 /etc/letsencrypt /var/log/letsencrypt /var/lib/letsencrypt &&
+        chown -R 70:1000 /var/run/postgresql && chmod -R g+w /var/run/postgresql && \
+        chown -R 999:1000 /var/run/redis && chmod -R g+w /var/run/redis && \
+        chown -R 82:1000 /var/run/php && chmod -R g+w /var/run/php \
+      "
     volumes:
       - nextcloud_certs_archive:/etc/letsencrypt/archive/nextcloud.fairagro.net:rw
       - nextcloud_certs_live:/etc/letsencrypt/live/nextcloud.fairagro.net:rw
@@ -286,14 +301,17 @@ services:
       - certbot_config:/etc/letsencrypt:rw
       - certbot_logs:/var/log/letsencrypt:rw
       - certbot_work:/var/lib/letsencrypt:rw
+      - nextcloud_socket:/var/run/php:rw
+      - db_socket:/var/run/postgresql:rw
+      - redis_socket:/var/run/redis:rw
     restart: "no"
 
   certbot:
-    image: certbot/dns-cloudflare
+    image: certbot/dns-cloudflare@sha256:bf87c2e3588f08c7fd520cc2fd155a954850c68d92105d693b26cd12dc3fca28 # v4.1.1
     restart: unless-stopped
     user: "101:1000"  # Ein normaler User ohne Rootrechte
     depends_on:
-      - certbot_init
+      - init
     read_only: true
     volumes:
       - nextcloud_certs_archive:/etc/letsencrypt/archive/nextcloud.fairagro.net:rw
@@ -323,6 +341,7 @@ volumes:
   nextcloud_data:
   nextcloud_certs_archive:
   nextcloud_certs_live:
+  nextcloud_socket:
   onlyoffice_data:
   onlyoffice_logs:
   onlyoffice_lib:
@@ -330,25 +349,18 @@ volumes:
   onlyoffice_certs_live:
   db_data:
   db_run:
+  db_socket:
   nginx_html:
   certbot_config:
   certbot_logs:
   certbot_work:
+  redis_socket:
 
 networks:
-  nextcloud-db-net:
-    internal: true
-    ipam:
-      config:
-        - subnet: 172.31.255.0/28
   onlyoffice-db-net:
     internal: true
     ipam:
       config:
         - subnet: 172.31.254.0/28
-  nextcloud-redis-net:
-    internal: true
-  nextcloud-nginx-net:
-    internal: true
   external-net:
     internal: false
