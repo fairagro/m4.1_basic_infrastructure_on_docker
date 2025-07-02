@@ -364,6 +364,6 @@ networks:
     internal: true
     ipam:
       config:
-        - subnet: 172.31.254.0/28
+        - subnet: ${ONLYOFFICE_DB_SUBNET}
   external-net:
     internal: false
