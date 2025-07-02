@@ -2,6 +2,17 @@ services:
   nextcloud:
     image: nextcloud@sha256:e80b83febbc5aba4c04d201b0d1ada744d1119d510248954f8d4105891cf5ddd # 31.0.6-fpm-alpine
     restart: unless-stopped
+    # We set TRUSTED_PROXIES to 127.0.0.1, because we're refering to the nginx-proxy
+    # service, defined in this docker compose file. The communictaion is done via unix
+    # sockets, so there's actually no IP involved. Obviously nextcloud gets 127.0.0.1
+    # in this case.
+    # Note: TRUSTED_PROXIES is used to determine if the X-Forward-For header can be
+    # trusted. Nextcloud only take this header into account if the actual request
+    # originates from a trusted proxy.
+    # The detail are confusing for me. It's important that also FastCGI is involed in
+    # the communication. It defines a REMOTE_ADDR which can be set by nginx. How does
+    # this value comes into play?
+    # Actually 127.0.0.1 should be wrong, but it works...
     environment:
       - POSTGRES_HOST=/var/run/postgresql
       - POSTGRES_DB=nextcloud
@@ -9,6 +20,8 @@ services:
       - POSTGRES_PASSWORD=${NEXTCLOUD_DB_PASSWORD}
       - PGSSLCERT=/tmp/postgresql.crt
       - REDIS_HOST=/var/run/redis/redis.sock
+      - REDIS_HOST_PORT=0
+      - REDIS_HOST_PASSWORD=${REDIS_HOST_PASSWORD}
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT}
       - SMTP_SECURE=${SMTP_SECURE}
@@ -18,15 +31,16 @@ services:
       - ONLYOFFICE_SERVER=${ONLYOFFICE_FQDN}
       - NEXTCLOUD_TRUSTED_DOMAINS=${NEXTCLOUD_FQDN}
       - NEXTCLOUD_DATA_DIR=/var/www/data
-      - TRUSTED_PROXIES=${INTERNAL_REVERSE_PROXY_IP}
       - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER}
       - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_USER}
       - SMTP_NAME=${SMTP_NAME}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
-      - REDIS_HOST_PASSWORD=${REDIS_HOST_PASSWORD}
       - ONLYOFFICE_JWT_SECRET=${ONLYOFFICE_JWT_SECRET}
       - PHP_MEMORY_LIMIT=2048M
       - PHP_UPLOAD_LIMIT=1024M
+      - TRUSTED_PROXIES=127.0.0.1
+      - OVERWRITECLIURL=https://${NEXTCLOUD_FQDN}
+      - OVERWRITEPROTOCOL=https
     user: "82:1000"
     extra_hosts:
       - "${NEXTCLOUD_FQDN}:${NEXTCLOUD_IP}"
@@ -71,6 +85,8 @@ services:
       - POSTGRES_PASSWORD=${NEXTCLOUD_DB_PASSWORD}
       - PGSSLCERT=/tmp/postgresql.crt
       - REDIS_HOST=/var/run/redis/redis.sock
+      - REDIS_HOST_PORT=0
+      - REDIS_HOST_PASSWORD=${REDIS_HOST_PASSWORD}
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT}
       - SMTP_SECURE=${SMTP_SECURE}
@@ -83,9 +99,7 @@ services:
       - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_USER}
       - SMTP_NAME=${SMTP_NAME}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
-      - REDIS_HOST_PASSWORD=${REDIS_HOST_PASSWORD}
       - PHP_MEMORY_LIMIT=2048M
-      - PHP_UPLOAD_LIMIT=1024M
     extra_hosts:
       - "${NEXTCLOUD_FQDN}:${NEXTCLOUD_IP}"
       - "${ONLYOFFICE_FQDN}:${ONLYOFFICE_IP}"
@@ -360,6 +374,6 @@ networks:
     internal: true
     ipam:
       config:
-        - subnet: 172.31.254.0/28
+        - subnet: ${ONLYOFFICE_DB_SUBNET}
   external-net:
     internal: false
