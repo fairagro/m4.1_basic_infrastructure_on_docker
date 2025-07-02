@@ -219,10 +219,14 @@ services:
   nextcloud-redis:
     image: redis@sha256:48501c5ad00d5563bc30c075c7bcef41d7d98de3e9a1e6c752068c66f0a8463b # 8.0.2-alpine
     restart: unless-stopped
+    # Setting socket permissions to 777 is a workaround to nextcloud can access it.
+    # As the redis user and the nextcloud user share the same group (1000), it should
+    # be sufficient to set the permissions to 770. But for some unknown reason this
+    # does not work. So 777 is a workaround.
     command: >
       redis-server
         --unixsocket /var/run/redis/redis.sock
-        --unixsocketperm 770
+        --unixsocketperm 777
         --port 0
         --requirepass "$REDIS_HOST_PASSWORD"
     user: "999:1000"
