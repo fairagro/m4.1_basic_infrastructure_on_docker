@@ -14,7 +14,7 @@ cat > /var/www/html/config/logging.config.php <<EOF
 \$CONFIG = [
     'log_type' => 'file',
     'logfile' => 'php://stdout',
-    'loglevel' => 1, // DEBUG für maximalen Output
+    'loglevel' => 1, // INFO
 ];
 EOF
 
