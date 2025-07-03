@@ -23,6 +23,7 @@ cat > /var/www/html/config/misc.config.php <<EOF
 <?php
 \$CONFIG = [
     'default_phone_region' => 'DE',
+    'enable_previews' => false,
     'check_data_directory_permissions' => false,
     'versions_retention_obligation' => '14, auto',
 ];
