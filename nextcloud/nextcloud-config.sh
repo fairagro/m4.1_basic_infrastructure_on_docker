@@ -30,9 +30,11 @@ cat > /var/www/html/config/misc.config.php <<EOF
 EOF
 
 # *** user_oidc configuration ***
-cat > /var/www/html/config/user_oidc.php <<EOF
+cat > /var/www/html/config/user_oidc.config.php <<EOF
 <?php
 \$CONFIG = [
-  'single_logout' => false,
+  'user_oidc' => [
+    'single_logout' => false,
+  ],
 ];
 EOF
