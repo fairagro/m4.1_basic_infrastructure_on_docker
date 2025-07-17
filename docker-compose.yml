@@ -124,6 +124,30 @@ services:
     tmpfs:
       - /tmp
 
+  backup:
+    image: docker:latest
+    container_name: nextcloud_backup
+    restart: "no"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./backup/backup-runner.sh:/backup-runner.sh:ro
+      - ./backups:/backups
+    entrypoint: ["/bin/sh", "/backup-runner.sh"]
+    networks:
+      - external-net
+
+  restore:
+    image: docker:20.10.16-dind
+    privileged: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./backup:/backup:ro
+      - /var/lib/docker/volumes:/var/lib/docker/volumes:rw
+      - ./restore.sh:/restore.sh:ro
+      - ./:/app
+    working_dir: /app
+    entrypoint: ["/bin/sh", "/restore.sh"]
+
   onlyoffice:
     image: onlyoffice/documentserver-ee@sha256:f6219abc67561a57d5ad3307a6aa816b291280fad40a43475f0335329dbdaa75 # 9.0.0.168
     restart: unless-stopped
