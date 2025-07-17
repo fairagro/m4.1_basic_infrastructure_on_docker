@@ -28,3 +28,11 @@ cat > /var/www/html/config/misc.config.php <<EOF
     'versions_retention_obligation' => '14, auto',
 ];
 EOF
+
+# *** user_oidc configuration ***
+cat > /var/www/html/config/user_oidc.php <<EOF
+<?php
+\$CONFIG = [
+  'single_logout' => false,
+];
+EOF
