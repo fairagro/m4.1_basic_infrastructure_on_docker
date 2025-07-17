@@ -110,23 +110,29 @@ This is how to deploy:
 
   ```bash
   cd m4.1_basic_infrastructure_on_docker
-  sops exec-env environments/productive/secrets.enc.yaml 'docker compose up -d'
+  sops exec-env environments/productive/secrets.enc.yaml \
+    'docker compose --env-file environments/prod/values.env up -d'
   ```
 
 ## Remark on the file `docker-compose.yml`
 
 * The service containers `nextcloud` and `nginx-proxy` are built using different
-  UID (82 vs 101). So we run them with group id 1000, so they can share data.
+  UID (82 vs 101). We run them with group id 1000, so they can share data.
+  (Actually group id 1000 was a bad idea, because it's the standard group id for the
+  first Linux user on many systems. 10000 would have been better).
 
 ## Remark on the file `nextcloud/redis-session.ini`
 
 It will be mounted as -- initially -- empty file into the nextcloud container.
 The nextcloud entrypoint will then write to it. We use this approach as otherwise
-this file would not be writable by a non-root container. We do not wont to add the
-contentets of this file to the git repo (it contains secrets), so it was added to
+this file would not be writable by a non-root container. We do not want to add the
+contents of this file to the git repo (it contains secrets), so it was added to
 `.gitignore` after the initial creation.
 
 ## Restoring the backup
+
+Note that this section describes the migration from kuberenetes to a standalone VM.
+It's not a genereal backup/restore documentation, which differs in some details.
 
 The backup consists of filesystem backups of the two kubernetes volumes called
 `nextcloud` and `nextcloud_data` and a database backup.
@@ -134,10 +140,11 @@ There are several subdirectories in the `nextcloud` volume that were mounted to
 the corresponding directories in `/var/www/html`. The `nextcloud_data` volume was
 mounted to `/nextcloud_data`, while the nextcloud config pointed to that directory.
 
-Our current docker installation just uses one volume, mounted to `/var/www/html`.
+Our current docker installation just uses one volume with one mountpoint
+(`/var/www/html`).
 
 Note that we won't make use of the configuration files of the backup, as they differ
-quite a lot from a freshly set up configuration. Instead the config will is imposed
+quite a lot from a freshly set up configuration. Instead the config is imposed
 by the docker compose file and we need to deal with some `instanceid`-related issues.
 
 ### Assumptions
@@ -159,7 +166,7 @@ These are our assumptions:
   sudo tar xzf backup.tar.bz2 --same-owner --same-permissions --acls --xattrs
   ```
 
-* The database backup is to be created using `pg_dumpall`.
+* The database backup was created using `pg_dumpall`.
 
 ### Preparation
 
@@ -218,3 +225,134 @@ docker exec -it m41_basic_infrastructure_on_docker-nextcloud-1 /var/www/html/occ
 Note that it is normal if the database restore shows errors due to missing tables and schemas and the like.
 This is because the kuberentes postgresql operator uses a bunch of postgresql extensions that are not
 available on a plain postgresql docker images.
+
+## On a general Backup/Restore process
+
+This section depicts a not yet tested backup/restore scenario that is intended to be implemented in terms
+of dedicated docker compose services (that may also be scheduled using cron).
+
+### Creating the Backup
+
+The backup process is quite straight forward:
+
+1. Define a backup locations. E.g.:
+
+   ```bash
+   BACKUP_PATH=/tmp/backup/2025-07-17
+   NEXTCLOUD_BACKUP="${BACKUP_PATH}/nextcloud"
+   NEXTCLOUD_DATA_BACKUP="${BACKUP_PATH}/nextcloud_data"
+   DB_BACKUP="${BACKUP_PATH}/pg_dumpall.sql"
+   NEXTCLOUD_HOST_PATH=/var/lib/docker/volumes/m41_basic_infrastructure_on_docker_nextcloud/_data
+   NEXTCLOUD_DATA_HOST_PATH=/var/lib/docker/volumes/m41_basic_infrastructure_on_docker_nextcloud_data/_data
+   ```
+
+2. Put nextcloud into maintenance mode:
+
+   ```bash
+   docker exec -it m41_basic_infrastructure_on_docker-nextcloud-1 /var/www/html/occ maintenance:mode --on
+   ```
+
+3. Create a database dump:
+
+   ```bash
+   docker exec -it m41_basic_infrastructure_on_docker-nextcloud-1 pg_dumpall -d nextcloud > "$DB_BACKUP"
+   ```
+
+4. Create volume dumps:
+
+   ```bash
+   sudo rsync -a --numeric-ids --times --devices --specials --perms --acls --xattrs "${NEXTCLOUD_HOST_PATH}/" "${NEXTCLOUD_BACKUP}/"
+   sudo rsync -a --numeric-ids --times --devices --specials --perms --acls --xattrs "${NEXTCLOUD_DATA_HOST_PATH}/" "${NEXTCLOUD_DATA_BACKUP}/"
+   ```
+
+5. Stop maintenance mode:
+
+   ```bash
+   docker exec -it m41_basic_infrastructure_on_docker-nextcloud-1 /var/www/html/occ maintenance:mode --off
+   ```
+
+6. Compress the backup:
+
+   ```bash
+   sudo tar czf "${BACKUP_PATH}.tgz" --numeric-owner --preserve-permissions --acls --xattrs "$BACKUP_PATH"
+   ```
+
+   Note: do not use bzip2 for compressing (so do not replac the 'z' switch by 'j'), this is way too slow.
+
+7. Copy the backup somewhere else. Ideally to a ZALF-internal location (possible the DIS SMB storage hosted
+   by ZALF IT) and to a S3 hosted at Hetzner.
+
+8. Deploy some backup retention strategy, i.e. delete unneeded backups. The strategy could like like:
+   keep the last five nightly backups. On top of that keep one backup per ten days, also five of them.
+   On top of that keep one backup per 100 days. Or similar...
+
+### Restoring the backup
+
+This scenarios assumes that there is no running nextcloud instance with the corresponding docker volumes.
+
+1. I case there already is a running nextcloud instance, stop it and delete all or some corresponding docker
+   volumes:
+
+   ```bash
+   sops exec-env environments/prod/secrets.enc.yaml 'docker compose --env-file environments/prod/values.env down'
+   docker volume rm \
+     m41_basic_infrastructure_on_docker_db_data \
+     m41_basic_infrastructure_on_docker_db_run \
+     m41_basic_infrastructure_on_docker_nextcloud \
+     m41_basic_infrastructure_on_docker_nextcloud_data \
+     m41_basic_infrastructure_on_docker_onlyoffice_data \
+     m41_basic_infrastructure_on_docker_onlyoffice_lib \
+     m41_basic_infrastructure_on_docker_onlyoffice_logs
+   ```
+
+   This keeps the volumes containing certificates, so they do not need to be re-created (with the risk on running
+   in a rate limit by letsencrypt).
+
+2. Create the needed volumes, without actually starting nextcloud (which would trigger an initialization):
+
+   ```bash
+   sops exec-env environments/prod/secrets.enc.yaml \
+       'docker compose --env-file environments/prod/values.env up --no-start'
+   ```
+
+3. Define the needed paths. E.g.:
+
+   ```bash
+   BACKUP_PATH=/tmp/backup/2025-07-17
+   NEXTCLOUD_BACKUP="${BACKUP_PATH}/nextcloud"
+   NEXTCLOUD_DATA_BACKUP="${BACKUP_PATH}/nextcloud_data"
+   DB_BACKUP="${BACKUP_PATH}/pg_dumpall.sql"
+   NEXTCLOUD_HOST_PATH=/var/lib/docker/volumes/m41_basic_infrastructure_on_docker_nextcloud/_data
+   NEXTCLOUD_DATA_HOST_PATH=/var/lib/docker/volumes/m41_basic_infrastructure_on_docker_nextcloud_data/_data
+   ```
+
+4. Unpack the backup:
+
+   ```bash
+   sudo tar xzf "${BACKUP_PATH}.tgz" --numeric-owner --preserve-permissions --acls --xattrs "${BACKUP_PATH}/"
+   ```
+
+5. Restore the volumes:
+
+   ```bash
+   sudo rsync -a --numeric-ids --times --devices --specials --perms --acls --xattrs \
+       "${NEXTCLOUD_BACKUP}/*" "${NEXTCLOUD_HOST_PATH}/"
+   sudo rsync -a --numeric-ids --times --devices --specials --perms --acls --xattrs \
+       "${NEXTCLOUD_DATA_BACKUP}/*" "${NEXTCLOUD_DATA_HOST_PATH}/"
+   ```
+
+6. Powerup and restore the database:
+
+   ```bash
+   sops exec-env environments/prod/secrets.enc.yaml \
+       'docker compose --env-file environments/prod/values.env up -d db'
+   cat "$DB_BACKUP" | docker exec -i m41_basic_infrastructure_on_docker-db-1 psql
+   ```
+
+7. Powerup everything, wait until running and stop maintenance mode:
+
+   ```bash
+   sops exec-env environments/prod/secrets.enc.yaml \
+       'docker compose --env-file environments/prod/values.env up -d'
+   docker exec -it m41_basic_infrastructure_on_docker-nextcloud-1 /var/www/html/occ maintenance:mode --off
+   ```
