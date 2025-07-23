@@ -12,6 +12,27 @@ php /var/www/html/occ config:app:set onlyoffice jwt_secret --quiet --value=${ONL
 # Enable manual save
 php /var/www/html/occ config:app:set onlyoffice customizationForcesave --value=true
 
+# Install and configure user_oidc app
+php /var/www/html/occ app:install user_oidc
+# Create FAIRagro keycloak provider
+# Note that neither user_oidc:provide nor config:app:set expose a setting for
+# the GUI field "Use provider identifier as prefix for IDs". So we cannot set it
+# here, although we would like to. We leave it unset as it's not that important.
+php /var/www/html/occ user_oidc:provider "FAIRagro Keycloak" \
+    --clientid="${KEYCLOAK_CLIENT_ID}" \
+    --clientsecret="${KEYCLOAK_CLIENT_SECRET}" \
+    --discoveryuri="${KEYCLOAK_DISCOVERY_URL}" \
+    --scope="openid email profile groups" \
+    --unique-uid=1 \
+    --check-bearer=0 \
+    --bearer-provisioning=0 \
+    --send-id-token-hint=0 \
+    --mapping-uid="nextcloud_userid | sub" \
+    --group-provisioning=1 \
+    --group-whitelist-regex="/^FAIRagro/" \
+    --group-restrict-login-to-whitelist=1 \
+    --resolve-nested-claims=1
+
 # Install additional apps
 php /var/www/html/occ app:install files_accesscontrol
 php /var/www/html/occ app:install calendar
@@ -20,6 +41,8 @@ php /var/www/html/occ app:install announcementcenter
 
 # Remove outdated app
 php /var/www/html/occ app:remove files_markdown
+php /var/www/html/occ app:remove user_saml
+php /var/www/html/occ app:remove oidc_login
 
 # Enable wanted apps
 php /var/www/html/occ app:enable bruteforcesettings

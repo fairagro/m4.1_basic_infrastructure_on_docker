@@ -41,6 +41,9 @@ services:
       - TRUSTED_PROXIES=127.0.0.1
       - OVERWRITECLIURL=https://${NEXTCLOUD_FQDN}
       - OVERWRITEPROTOCOL=https
+      - KEYCLOAK_CLIENT_ID
+      - KEYCLOAK_CLIENT_SECRET
+      - KEYCLOAK_DISCOVERY_URL
     user: "82:1000"
     extra_hosts:
       - "${NEXTCLOUD_FQDN}:${NEXTCLOUD_IP}"
